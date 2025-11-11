@@ -1,9 +1,9 @@
 import time
-from wheel import Wheel
-from us_sensor import UltrasonicSensor
-from color_sensing_system import ColorSensingSystem
-from speaker import Speaker
-from drop_off_system import DropOffSystem
+from components.wheel import Wheel
+from components.us_sensor import UltrasonicSensor
+from components.color_sensing_system import ColorSensingSystem
+from components.speaker import Speaker
+from components.drop_off_system import DropOffSystem
 from utils.brick import TouchSensor
 import threading
 
