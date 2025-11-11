@@ -23,8 +23,10 @@ class ColorSensingSystem:
         self.motor = Motor(motor_port)
         self.is_in_front = False
         self.most_recent_color = None
+        self.prev_color=None
         self.color_sensing_thread = None
         self.stop_sensing_flag = threading.Event()
+        self.detect_hallway_on_right_flag = threading.Event()
         self.color_lock = threading.Lock()
 
     def move_sensor_to_front(self):
@@ -76,16 +78,28 @@ class ColorSensingSystem:
     
     def detect_color_loop(self):
         while not self.stop_sensing_flag.is_set():
+            prev_color = self.most_recent_color
             color = self.detect_color()
             with self.color_lock:
+                if self.prev_color == "White" and color == "Black":
+                    self.detect_hallway_on_right_flag = threading.Event().set()
+                self.prev_color = prev_color
                 self.most_recent_color = color
             time.sleep(0.2)
 
+    def start_detecting_color(self):
+        if self.color_sensing_thread and self.color_sensing_thread.is_alive():
+            return
+        self.stop_sensing_flag.clear()
+        self.color_sensing_thread = threading.Thread(target=self.detect_color_loop, daemon=True)
+        self.color_sensing_thread.start()
+    
+    def stop_detecting_color(self):
+        self.stop_sensing_flag.set()
+        if self.color_sensing_thread and self.color_sensing_thread.is_alive():
+            self.color_sensing_thread.join()
+
     def detect_hallway_on_right(self):
-        """
-        Example method: returns True if the color indicates a right turn (red),
-        otherwise False.
-        """
         if(not self.is_in_front()):
             color = self.detect_color()
             return color.lower() == "Black"

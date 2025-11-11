@@ -24,6 +24,7 @@ class Robot:
 
     def turn_right(self, deg:int):
         self.stop_moving()
+        print("Turning right")
         t1=threading.Thread(target=self.left_wheel.rotate_wheel_degrees, args=(deg))
         t2=threading.Thread(target=self.right_wheel.rotate_wheel_degrees, args=(-deg))
         t1.start()
@@ -34,6 +35,7 @@ class Robot:
 
     def turn_left(self, deg:int):
         self.stop_moving()
+        print("Turning left")
         t1=threading.Thread(target=self.left_wheel.rotate_wheel_degrees, args=(-deg))
         t2=threading.Thread(target=self.right_wheel.rotate_wheel_degrees, args=(deg))
         t1.start()
@@ -59,6 +61,7 @@ class Robot:
     def move_forward(self, power:int):
         self.stop_moving()
         self.stop_flag.clear()
+        self.color_sensing_system.start_detecting_color()
         def move_loop():
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(power)
@@ -66,6 +69,19 @@ class Robot:
             while not self.stop_flag.is_set():
                 with self.us_sensor.lock:
                     direction = self.us_sensor.latest_direction
+                
+                if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
+                    print("Detected hallway on right")
+                    self.stop_flag.set()
+                    self.color_sensing_system.detect_hallway_on_right_flag.clear()
+                    
+                    self.left_wheel.stop_spinning()
+                    self.right_wheel.stop_spinning()
+
+                    self.turn_right(60)
+                    self.stop_flag.clear()
+                    self.left_wheel.spin_wheel_continuously(power/5)
+                    self.right_wheel.spin_wheel_continuously(power/5)
 
                 if direction and direction != "ok":
                     self.readjust_alignment(direction)
