@@ -25,23 +25,15 @@ class Robot:
     def turn_right(self, deg:int):
         self.stop_moving()
         print("Turning right")
-        t1=threading.Thread(target=self.left_wheel.rotate_wheel_degrees, args=(deg))
-        t2=threading.Thread(target=self.right_wheel.rotate_wheel_degrees, args=(-deg))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+        self.left_wheel.rotate_wheel_degrees(deg)
+        self.right_wheel.rotate_wheel_degrees(-deg)
         self.us_sensor.wall_pointed_to = "long"
 
     def turn_left(self, deg:int):
         self.stop_moving()
         print("Turning left")
-        t1=threading.Thread(target=self.left_wheel.rotate_wheel_degrees, args=(-deg))
-        t2=threading.Thread(target=self.right_wheel.rotate_wheel_degrees, args=(deg))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+        self.left_wheel.rotate_wheel_degrees(-deg)
+        self.right_wheel.rotate_wheel_degrees(deg)
         self.us_sensor.wall_pointed_to = "short"
 
     def readjust_alignment(self, direction: str):
