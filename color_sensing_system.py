@@ -1,3 +1,4 @@
+import threading
 import time
 import math
 from utils.brick import EV3ColorSensor, Motor
@@ -21,6 +22,10 @@ class ColorSensingSystem:
         self.color_sensor = EV3ColorSensor(sensor_port)
         self.motor = Motor(motor_port)
         self.is_in_front = False
+        self.most_recent_color = None
+        self.color_sensing_thread = None
+        self.stop_sensing_flag = threading.Event()
+        self.color_lock = threading.Lock()
 
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
@@ -68,6 +73,13 @@ class ColorSensingSystem:
                 closest_color = color_name
 
         return closest_color.capitalize()  # e.g., "Red", "Green"
+    
+    def detect_color_loop(self):
+        while not self.stop_sensing_flag.is_set():
+            color = self.detect_color()
+            with self.color_lock:
+                self.most_recent_color = color
+            time.sleep(0.2)
 
     def detect_hallway_on_right(self):
         """

@@ -1,3 +1,5 @@
+import threading
+from time import time
 from utils.brick import EV3UltrasonicSensor
 
 class UltrasonicSensor:
@@ -11,6 +13,34 @@ class UltrasonicSensor:
     def __init__(self):
         self.us_sensor = EV3UltrasonicSensor(4)
         self.us_sensor.set_mode_distance_cm()
+        self.wall_pointed_to = "short"
+        self.latest_distance = float('inf')
+        self.latest_direction = "ok"
+        self.lock = threading.Lock()
+        self.stop_flag = threading.Event()
+        self.monitor_thread = None
+
+    def start_monitoring_distance(self):
+        #allows to monitor the distance in the background
+        if self.moitor_thread and self.monitor_thread.is_alive():
+            return
+        self.stop_flag.clear()
+        self.monitor_thread = threading.Thread(target=self.monitor_loop, daemon=True)
+        self.monitor_thread.start()
+    
+    def stop_monitoring_distance(self):
+        self.stop_flag.set()
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join()
+
+    def monitor_loop(self):
+        while not self.stop_flag.is_set():
+            distance = self.get_distance()
+            direction = self.check_adjustment(distance, self.wall_pointed_to)
+            with self.lock:
+                self.latest_distance = distance
+                self.latest_direction = direction
+            time.sleep(0.2)
 
     def get_distance(self)->float:
         distance = self.us_sensor.get_cm()
