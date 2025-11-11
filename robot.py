@@ -1,6 +1,4 @@
-import re
 import time
-from turtle import color
 from wheel import Wheel
 from us_sensor import UltrasonicSensor
 from color_sensing_system import ColorSensingSystem
@@ -9,9 +7,24 @@ from drop_off_system import DropOffSystem
 from utils.brick import TouchSensor
 import threading
 
+# this will store what each right turn which we detect means
+RIGHT_TURNS = ["turn",
+                "room",
+                "home_invalid",
+                "turn",
+                "room",
+                "home_valid",
+                "room",
+                "turn",
+                "home_invalid",
+                "turn",
+                "room",
+                "home_valid"]
 
 class Robot:
     def __init__(self):
+        self.right_turns_passed = 0
+        self.packages_delivered = 0
         self.right_wheel = Wheel('B')
         self.left_wheel = Wheel('C')
         self.drop_off_system = DropOffSystem('A')
@@ -55,6 +68,7 @@ class Robot:
         self.stop_flag.clear()
         self.color_sensing_system.start_detecting_color()
         def move_loop():
+            self.us_sensor.start_monitoring_distance()
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(power)
 
@@ -69,8 +83,9 @@ class Robot:
                     
                     self.left_wheel.stop_spinning()
                     self.right_wheel.stop_spinning()
-
-                    self.turn_right(60)
+                    if(RIGHT_TURNS[self.right_turns_passed]!="home_invalid"):
+                        self.turn_right(60)
+                    self.right_turns_passed += 1
                     self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(power/5)
                     self.right_wheel.spin_wheel_continuously(power/5)
@@ -88,6 +103,7 @@ class Robot:
     
     def stop_moving(self):
         self.stop_flag.set()
+        self.us_sensor.stop_monitoring_distance()
         if self.move_thread and self.move_thread.is_alive():
             self.move_thread.join()
         time.sleep(0.2)
@@ -118,6 +134,7 @@ class Robot:
         self.stop_moving()
         self.drop_off_system.deliver_package()
         self.speaker.play_delivery_tone()
+        self.packages_delivered += 1
 
     def go_home(self):
         pass

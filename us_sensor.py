@@ -4,15 +4,15 @@ from utils.brick import EV3UltrasonicSensor
 
 class UltrasonicSensor:
     # the distances are always on the right of the robot
-    SHORT_DISTANCE_FROM_WALL = 13 #cm
-    LONG_DISTANCE_FROM_WALL = 85 #cm
+    SHORT_DISTANCE_FROM_WALL = 13
+    LONG_DISTANCE_FROM_WALL = 85
+    THRESHOLD_DISTANCE = 1
     ACCEPTABLE_DISTANCES = {
-        "short": (11, 15),
-        "long": (83, 87)
+        "short": (SHORT_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, SHORT_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE),
+        "long": (LONG_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, LONG_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE)
     }
     def __init__(self):
         self.us_sensor = EV3UltrasonicSensor(4)
-        self.us_sensor.set_mode_distance_cm()
         self.wall_pointed_to = "short"
         self.latest_distance = float('inf')
         self.latest_direction = "ok"
@@ -22,7 +22,7 @@ class UltrasonicSensor:
 
     def start_monitoring_distance(self):
         #allows to monitor the distance in the background
-        if self.moitor_thread and self.monitor_thread.is_alive():
+        if self.monitor_thread and self.monitor_thread.is_alive():
             return
         self.stop_flag.clear()
         self.monitor_thread = threading.Thread(target=self.monitor_loop, daemon=True)
