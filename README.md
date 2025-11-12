@@ -20,4 +20,5 @@ Once the robot is in the room, it would be able to sweep the room to check for a
 green square.
 
 ### Drop-off system:
-- 
+- Using a piston system which will push the lowest block out and allow the next
+block to fall in position to then be pushed next

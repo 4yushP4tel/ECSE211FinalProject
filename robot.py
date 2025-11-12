@@ -1,17 +1,30 @@
-import re
 import time
-from turtle import color
-from wheel import Wheel
-from us_sensor import UltrasonicSensor
-from color_sensing_system import ColorSensingSystem
-from speaker import Speaker
-from drop_off_system import DropOffSystem
+from components.wheel import Wheel
+from components.us_sensor import UltrasonicSensor
+from components.color_sensing_system import ColorSensingSystem
+from components.speaker import Speaker
+from components.drop_off_system import DropOffSystem
 from utils.brick import TouchSensor
 import threading
 
+# this will store what each right turn which we detect means
+RIGHT_TURNS = ["turn",
+                "room",
+                "home_invalid",
+                "turn",
+                "room",
+                "home_valid",
+                "room",
+                "turn",
+                "home_invalid",
+                "turn",
+                "room",
+                "home_valid"]
 
 class Robot:
     def __init__(self):
+        self.right_turns_passed = 0
+        self.packages_delivered = 0
         self.right_wheel = Wheel('B')
         self.left_wheel = Wheel('C')
         self.drop_off_system = DropOffSystem('A')
@@ -21,27 +34,21 @@ class Robot:
         self.emergency_touch_sensor = TouchSensor(1)
         self.move_thread = None
         self.stop_flag = threading.Event()
+        self.go_home_flag = threading.Event()
 
-    def turn_right(self, deg:int):
+    def turn_right(self, power:int):
         self.stop_moving()
         print("Turning right")
-        t1=threading.Thread(target=self.left_wheel.rotate_wheel_degrees, args=(deg))
-        t2=threading.Thread(target=self.right_wheel.rotate_wheel_degrees, args=(-deg))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+        while self.color_sensing_system.most_recent_color != "Black":
+            self.left_wheel.spin_wheel_continuously(power)
+            self.right_wheel.spin_wheel_continuously(-power)
         self.us_sensor.wall_pointed_to = "long"
 
-    def turn_left(self, deg:int):
+    def turn_left(self, power:int):
         self.stop_moving()
         print("Turning left")
-        t1=threading.Thread(target=self.left_wheel.rotate_wheel_degrees, args=(-deg))
-        t2=threading.Thread(target=self.right_wheel.rotate_wheel_degrees, args=(deg))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+        self.left_wheel.spin_wheel_continuously(-power)
+        self.right_wheel.spin_wheel_continuously(power)
         self.us_sensor.wall_pointed_to = "short"
 
     def readjust_alignment(self, direction: str):
@@ -58,11 +65,13 @@ class Robot:
             time.sleep(0.5)
         return
 
-    def move_forward(self, power:int):
+    def move(self, power:int):
         self.stop_moving()
-        self.stop_flag.clear()
+        if self.stop_flag.is_set():
+            self.stop_flag.clear()
         self.color_sensing_system.start_detecting_color()
         def move_loop():
+            self.us_sensor.start_monitoring_distance()
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(power)
 
@@ -77,8 +86,9 @@ class Robot:
                     
                     self.left_wheel.stop_spinning()
                     self.right_wheel.stop_spinning()
-
-                    self.turn_right(60)
+                    if(RIGHT_TURNS[self.right_turns_passed]!="home_invalid"):
+                        self.turn_right(20)
+                    self.right_turns_passed += 1
                     self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(power/5)
                     self.right_wheel.spin_wheel_continuously(power/5)
@@ -95,7 +105,9 @@ class Robot:
         self.move_thread.start()
     
     def stop_moving(self):
-        self.stop_flag.set()
+        if not self.stop_flag.is_set():
+            self.stop_flag.set()
+        self.us_sensor.stop_monitoring_distance()
         if self.move_thread and self.move_thread.is_alive():
             self.move_thread.join()
         time.sleep(0.2)
@@ -107,14 +119,24 @@ class Robot:
         time.sleep(0.5)
         color = self.color_sensing_system.detect_color()
         while color != "Red":
-            self.move_forward(20)
+            self.move(20)
             if color == "Orange":
                 self.stop_moving()
                 return True
         return False
             
-    def go_back_to_hallway(self):
-        pass
+    def go_back_to_hallway(self, power:int):
+        """
+        the power is the power at which you should move backwards
+        """
+        self.stop_moving()
+        while self.color_sensing_system.most_recent_color != "Black":
+            # basically moving backwards
+            self.move(-power)
+        time.sleep(0.5)
+        self.turn_left(10)
+        time.sleep(0.5)
+        self.stop_moving()
 
     def enter_room(self):
         pass
@@ -126,6 +148,9 @@ class Robot:
         self.stop_moving()
         self.drop_off_system.deliver_package()
         self.speaker.play_delivery_tone()
+        self.packages_delivered += 1
+        if self.packages_delivered == 2:
+            self.go_home_flag.set()
 
     def go_home(self):
         pass
