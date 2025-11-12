@@ -1,3 +1,4 @@
+import sys
 import time
 from components.wheel import Wheel
 from components.us_sensor import UltrasonicSensor
@@ -79,6 +80,9 @@ class Robot:
             self.right_wheel.spin_wheel_continuously(power)
 
             while not self.stop_flag.is_set():
+                if self.emergency_touch_sensor.is_pressed():
+                    self.emergency_stop()
+
                 with self.us_sensor.lock:
                     direction = self.us_sensor.latest_direction
 
@@ -181,19 +185,6 @@ class Robot:
             self.move_thread.join()
         time.sleep(0.2)
 
-    def check_could_enter_room(self) -> bool:
-        self.turn_right(10)
-        time.sleep(0.5)
-        self.color_sensing_system.move_sensor_to_front()
-        time.sleep(0.5)
-        color = self.color_sensing_system.detect_color()
-        while color != "Red":
-            self.move(20)
-            if color == "Orange":
-                self.stop_moving()
-                return True
-        return False
-
     def drop_off_package(self):
         self.stop_moving()
         self.drop_off_system.deliver_package(self.packages_delivered)
@@ -204,4 +195,7 @@ class Robot:
             self.go_home_flag.set()
 
     def emergency_stop(self):
-        pass
+        self.left_wheel.stop_spinning()
+        self.right_wheel.stop_spinning()
+        self.color_sensing_system.stop_detecting_color()
+        sys.exit(1)
