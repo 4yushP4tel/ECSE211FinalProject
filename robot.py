@@ -39,7 +39,7 @@ class Robot:
     def turn_right(self, power:int):
         self.stop_moving()
         print("Turning right")
-        while self.color_sensing_system.most_recent_color != "Black":
+        while self.color_sensing_system.most_recent_color != "Black" and self.color_sensing_system.prev_color == "White":
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(-power)
         self.us_sensor.wall_pointed_to = "long"
