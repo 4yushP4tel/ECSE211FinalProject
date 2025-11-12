@@ -1,3 +1,4 @@
+import sys
 import time
 from components.wheel import Wheel
 from components.us_sensor import UltrasonicSensor
@@ -76,6 +77,9 @@ class Robot:
             self.right_wheel.spin_wheel_continuously(power)
 
             while not self.stop_flag.is_set():
+                if self.emergency_touch_sensor.is_pressed():
+                    self.emergency_stop()
+
                 with self.us_sensor.lock:
                     direction = self.us_sensor.latest_direction
                 
@@ -156,4 +160,7 @@ class Robot:
         pass
 
     def emergency_stop(self):
-        pass
+        self.left_wheel.stop_spinning()
+        self.right_wheel.stop_spinning()
+        self.color_sensing_system.stop_detecting_color()
+        sys.exit(1)
