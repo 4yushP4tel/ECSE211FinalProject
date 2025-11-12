@@ -11,5 +11,5 @@ class DropOffSystem:
         fall in place to then be delivered after.
         """
         self.motor.reset_encoder() # sets the curr position to 0
-        self.motor.set_position(360)
+        self.motor.set_position(359)
         self.motor.wait_is_stopped()

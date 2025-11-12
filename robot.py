@@ -34,19 +34,21 @@ class Robot:
         self.emergency_touch_sensor = TouchSensor(1)
         self.move_thread = None
         self.stop_flag = threading.Event()
+        self.go_home_flag = threading.Event()
 
-    def turn_right(self, deg:int):
+    def turn_right(self, power:int):
         self.stop_moving()
         print("Turning right")
-        self.left_wheel.rotate_wheel_degrees(deg)
-        self.right_wheel.rotate_wheel_degrees(-deg)
+        while self.color_sensing_system.most_recent_color != "Black":
+            self.left_wheel.spin_wheel_continuously(power)
+            self.right_wheel.spin_wheel_continuously(-power)
         self.us_sensor.wall_pointed_to = "long"
 
-    def turn_left(self, deg:int):
+    def turn_left(self, power:int):
         self.stop_moving()
         print("Turning left")
-        self.left_wheel.rotate_wheel_degrees(-deg)
-        self.right_wheel.rotate_wheel_degrees(deg)
+        self.left_wheel.spin_wheel_continuously(-power)
+        self.right_wheel.spin_wheel_continuously(power)
         self.us_sensor.wall_pointed_to = "short"
 
     def readjust_alignment(self, direction: str):
@@ -63,9 +65,10 @@ class Robot:
             time.sleep(0.5)
         return
 
-    def move_forward(self, power:int):
+    def move(self, power:int):
         self.stop_moving()
-        self.stop_flag.clear()
+        if self.stop_flag.is_set():
+            self.stop_flag.clear()
         self.color_sensing_system.start_detecting_color()
         def move_loop():
             self.us_sensor.start_monitoring_distance()
@@ -84,7 +87,7 @@ class Robot:
                     self.left_wheel.stop_spinning()
                     self.right_wheel.stop_spinning()
                     if(RIGHT_TURNS[self.right_turns_passed]!="home_invalid"):
-                        self.turn_right(60)
+                        self.turn_right(20)
                     self.right_turns_passed += 1
                     self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(power/5)
@@ -102,7 +105,8 @@ class Robot:
         self.move_thread.start()
     
     def stop_moving(self):
-        self.stop_flag.set()
+        if not self.stop_flag.is_set():
+            self.stop_flag.set()
         self.us_sensor.stop_monitoring_distance()
         if self.move_thread and self.move_thread.is_alive():
             self.move_thread.join()
@@ -115,14 +119,24 @@ class Robot:
         time.sleep(0.5)
         color = self.color_sensing_system.detect_color()
         while color != "Red":
-            self.move_forward(20)
+            self.move(20)
             if color == "Orange":
                 self.stop_moving()
                 return True
         return False
             
-    def go_back_to_hallway(self):
-        pass
+    def go_back_to_hallway(self, power:int):
+        """
+        the power is the power at which you should move backwards
+        """
+        self.stop_moving()
+        while self.color_sensing_system.most_recent_color != "Black":
+            # basically moving backwards
+            self.move(-power)
+        time.sleep(0.5)
+        self.turn_left(10)
+        time.sleep(0.5)
+        self.stop_moving()
 
     def enter_room(self):
         pass
@@ -135,6 +149,8 @@ class Robot:
         self.drop_off_system.deliver_package()
         self.speaker.play_delivery_tone()
         self.packages_delivered += 1
+        if self.packages_delivered == 2:
+            self.go_home_flag.set()
 
     def go_home(self):
         pass
