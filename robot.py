@@ -73,11 +73,11 @@ class Robot:
         self.stop_moving()
         if self.stop_flag.is_set():
             self.stop_flag.clear()
-        self.color_sensing_system.start_detecting_color()
         def move_loop():
-            self.us_sensor.start_monitoring_distance()
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(power)
+            self.color_sensing_system.start_detecting_color()
+            self.us_sensor.start_monitoring_distance()
 
             while not self.stop_flag.is_set():
                 if self.emergency_touch_sensor.is_pressed():
@@ -173,6 +173,8 @@ class Robot:
             
             self.left_wheel.stop_spinning()
             self.right_wheel.stop_spinning()
+            self.color_sensing_system.stop_detecting_color()
+            self.us_sensor.stop_monitoring_distance()
                 
         self.move_thread = threading.Thread(target=move_loop, daemon=True)
         self.move_thread.start()
