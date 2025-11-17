@@ -63,6 +63,7 @@ class ColorSensingSystem:
         'Black', 'White', 'Red', 'Green', 'Orange', or 'Unknown'.
         """
         rgb = self.color_sensor.get_rgb()  # returns list [R, G, B]
+        print(f"RGB sensed: {rgb}")
         return self._detect_color_from_rgb(rgb)
 
     def _detect_color_from_rgb(self, rgb):

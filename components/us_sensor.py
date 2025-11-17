@@ -1,12 +1,12 @@
 import threading
-from time import time
+import time
 from utils.brick import EV3UltrasonicSensor
 
 class UltrasonicSensor:
     # the distances are always on the right of the robot
-    SHORT_DISTANCE_FROM_WALL = 13
+    SHORT_DISTANCE_FROM_WALL = 4
     LONG_DISTANCE_FROM_WALL = 85
-    THRESHOLD_DISTANCE = 1
+    THRESHOLD_DISTANCE = 2
     ACCEPTABLE_DISTANCES = {
         "short": (SHORT_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, SHORT_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE),
         "long": (LONG_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, LONG_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE)

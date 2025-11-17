@@ -74,25 +74,43 @@ class Robot:
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
         readjustment_power = 10
+        delay_time = 0.15
 
         if direction == "l":
             print("Readjusting left")
             self.left_wheel.spin_wheel_continuously(-readjustment_power)
             self.right_wheel.spin_wheel_continuously(readjustment_power)
+            time.sleep(delay_time)
+            self.left_wheel.stop_spinning()
+            self.right_wheel.stop_spinning()
+
+            # Counter-correction to straighten
+            self.left_wheel.spin_wheel_continuously(readjustment_power // 2)
+            self.right_wheel.spin_wheel_continuously(-readjustment_power // 2)
+            time.sleep(delay_time / 2)
+            self.left_wheel.stop_spinning()
+            self.right_wheel.stop_spinning()
 
         elif direction == "r":
             print("Readjusting right")
+            # Turn slightly right
             self.left_wheel.spin_wheel_continuously(readjustment_power)
             self.right_wheel.spin_wheel_continuously(-readjustment_power)
+            time.sleep(delay_time)
+            self.left_wheel.stop_spinning()
+            self.right_wheel.stop_spinning()
 
-        time.sleep(0.2)
-        self.left_wheel.stop_spinning()
-        self.right_wheel.stop_spinning()
+            # Counter-correction to straighten
+            self.left_wheel.spin_wheel_continuously(-readjustment_power // 2)
+            self.right_wheel.spin_wheel_continuously(readjustment_power // 2)
+            time.sleep(delay_time / 2)
+            self.left_wheel.stop_spinning()
+            self.right_wheel.stop_spinning()
+
         with self.us_sensor.lock:
             direction = self.us_sensor.latest_direction
         
         print("Readjustment complete")
-        return
 
     def move(self, power:int):
         self.stop_moving()
