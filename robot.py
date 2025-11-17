@@ -29,9 +29,9 @@ class Robot:
         self.left_wheel = Wheel('C')
         self.drop_off_system = DropOffSystem('A')
         self.speaker = Speaker()
-        self.us_sensor = UltrasonicSensor()
-        self.color_sensing_system = ColorSensingSystem()
-        self.emergency_touch_sensor = TouchSensor(1)
+        self.us_sensor = UltrasonicSensor(4)
+        self.color_sensing_system = ColorSensingSystem(2, 'D')
+        self.emergency_touch_sensor = TouchSensor(3)
         self.move_thread = None
         self.stop_flag = threading.Event()
         self.go_home_flag = threading.Event()
@@ -42,6 +42,8 @@ class Robot:
         while self.color_sensing_system.most_recent_color != "Black" and self.color_sensing_system.prev_color == "White":
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(-power)
+        self.left_wheel.stop_spinning()
+        self.right_wheel.stop_spinning()
         self.us_sensor.wall_pointed_to = "long"
 
     def turn_left(self, power:int):
@@ -87,7 +89,7 @@ class Robot:
                     self.left_wheel.stop_spinning()
                     self.right_wheel.stop_spinning()
                     if(RIGHT_TURNS[self.right_turns_passed]!="home_invalid"):
-                        self.turn_right(20)
+                        self.turn_right(10)
                     self.right_turns_passed += 1
                     self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(power/5)
@@ -125,7 +127,7 @@ class Robot:
                 return True
         return False
             
-    def go_back_to_hallway(self, power:int):
+    def go_back_to_hallway_from_entrance(self, power:int):
         """
         the power is the power at which you should move backwards
         """
@@ -137,6 +139,9 @@ class Robot:
         self.turn_left(10)
         time.sleep(0.5)
         self.stop_moving()
+
+    def go_back_to_room_entrance(self, power:int):
+        pass
 
     def enter_room(self):
         pass

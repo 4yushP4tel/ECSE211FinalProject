@@ -11,8 +11,8 @@ class UltrasonicSensor:
         "short": (SHORT_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, SHORT_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE),
         "long": (LONG_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, LONG_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE)
     }
-    def __init__(self):
-        self.us_sensor = EV3UltrasonicSensor(4)
+    def __init__(self, sensor_port: int):
+        self.us_sensor = EV3UltrasonicSensor(sensor_port)
         self.wall_pointed_to = "short"
         self.latest_distance = float('inf')
         self.latest_direction = "ok"
