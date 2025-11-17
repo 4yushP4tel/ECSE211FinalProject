@@ -40,7 +40,8 @@ class UltrasonicSensor:
             with self.lock:
                 self.latest_distance = distance
                 self.latest_direction = direction
-            time.sleep(0.2)
+            print(f"US Sensor Distance: {distance} cm, Adjustment Needed: {direction}")
+            time.sleep(0.5)
 
     def get_distance(self)->float:
         distance = self.us_sensor.get_cm()

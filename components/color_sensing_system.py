@@ -107,7 +107,8 @@ class ColorSensingSystem:
                     self.detect_room_end.set()
                 self.prev_color = prev_color
                 self.most_recent_color = color
-            time.sleep(0.2)
+            print(f"Detected Color: {color}. Previous Color: {prev_color}")
+            time.sleep(0.5)
 
     def start_detecting_color(self):
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():

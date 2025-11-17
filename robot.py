@@ -5,7 +5,7 @@ from components.us_sensor import UltrasonicSensor
 from components.color_sensing_system import ColorSensingSystem
 from components.speaker import Speaker
 from components.drop_off_system import DropOffSystem
-from utils.brick import TouchSensor
+from utils.brick import TouchSensor, wait_ready_sensors
 import threading
 
 # This will store what each right turn which we detect means
@@ -42,35 +42,56 @@ class Robot:
         self.move_thread = None
         self.stop_flag = threading.Event()
         self.go_home_flag = threading.Event()
+        wait_ready_sensors()
 
     def turn_right(self, power):
         self.stop_moving()
         print("Turning right")
-        while self.color_sensing_system.most_recent_color != "Black" and self.color_sensing_system.prev_color == "White":
+        while self.color_sensing_system.most_recent_color == "Black" and self.color_sensing_system.prev_color == "White":
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(-power)
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
         self.us_sensor.wall_pointed_to = "long"
 
-    def turn_left(self, degree):
+    def turn_left(self, power):
         self.stop_moving()
         print("Turning left")
-        self.left_wheel.rotate_wheel_degrees(-degree, 20)
-        self.right_wheel.rotate_wheel_degrees(degree, 20)
+        while self.color_sensing_system.most_recent_color == "Black" and self.color_sensing_system.prev_color == "White":
+            self.left_wheel.spin_wheel_continuously(power)
+            self.right_wheel.spin_wheel_continuously(-power)
+        self.left_wheel.spin_wheel_continuously(-power)
+        self.right_wheel.spin_wheel_continuously(power)
+        self.us_sensor.wall_pointed_to = "short"
+
 
     def readjust_alignment(self, direction: str):
         # this would take info from the US sensor to check the distance from
         #the right wall and readjust if the distance is too large or small
-        readjustment_angle_of_rotation = 3
         if direction == "ok":
             return
-        elif direction == "l":
-            self.turn_left(readjustment_angle_of_rotation)
-            time.sleep(0.5)
+        
+        self.left_wheel.stop_spinning()
+        self.right_wheel.stop_spinning()
+        readjustment_power = 10
+
+        if direction == "l":
+            print("Readjusting left")
+            self.left_wheel.spin_wheel_continuously(-readjustment_power)
+            self.right_wheel.spin_wheel_continuously(readjustment_power)
+
         elif direction == "r":
-            self.turn_right(readjustment_angle_of_rotation)
-            time.sleep(0.5)
+            print("Readjusting right")
+            self.left_wheel.spin_wheel_continuously(readjustment_power)
+            self.right_wheel.spin_wheel_continuously(-readjustment_power)
+
+        time.sleep(0.2)
+        self.left_wheel.stop_spinning()
+        self.right_wheel.stop_spinning()
+        with self.us_sensor.lock:
+            direction = self.us_sensor.latest_direction
+        
+        print("Readjustment complete")
         return
 
     def move(self, power:int):
@@ -189,7 +210,7 @@ class Robot:
         if not self.stop_flag.is_set():
             self.stop_flag.set()
         self.us_sensor.stop_monitoring_distance()
-        if self.move_thread and self.move_thread.is_alive():
+        if self.move_thread and self.move_thread.is_alive() and threading.current_thread() != self.move_thread:
             self.move_thread.join()
         time.sleep(0.2)
 
