@@ -11,7 +11,8 @@ color_data = {
     'green': [106.35, 169.82, 41.88],
     'red': [140.06, 18.89, 22.22],
     'black': [33.70, 35.45, 21.35],
-    'blue': [114.95, 167.65, 247.30]
+    'blue': [114.95, 167.65, 247.30],
+    'grey': [177, 188, 221]
 }
 
 class   ColorSensingSystem:
@@ -63,10 +64,10 @@ class   ColorSensingSystem:
         """
         rgb = self.color_sensor.get_rgb()  # returns list [R, G, B]
         print(f"RGB sensed: {rgb}")
-        return self._detect_color_from_rgb(rgb)
+        return self.detect_color_from_rgb(rgb)
 
 
-    def detect_color_from_rgb(rgb):
+    def detect_color_from_rgb(self, rgb):
         """
         Detect the closest matching color using raw RGB values
         
@@ -100,7 +101,7 @@ class   ColorSensingSystem:
             prev_color = self.most_recent_color
             color = self.detect_color()
             with self.color_lock:
-                if self.prev_color == "white" and color == "black":
+                if (self.prev_color == "white" or self.prev_color=="grey") and color == "black":
                     self.detect_hallway_on_right_flag.set()
                 elif color == "red":
                     self.detect_invalid_entrance_flag.set()
@@ -110,7 +111,7 @@ class   ColorSensingSystem:
                     self.detect_valid_sticker_flag.set()
                 elif color == "yellow":
                     self.detect_room.set()
-                elif self.prev_color == "yellow" and color == "white":
+                elif self.prev_color == "yellow" and (color == "white" or color=="grey"):
                     self.detect_room_end.set()
                 self.prev_color = prev_color
                 self.most_recent_color = color
