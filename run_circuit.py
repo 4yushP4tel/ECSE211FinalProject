@@ -5,10 +5,14 @@ import time
 
 def main():
     # this function should run the entire circuit
+    #reset_brick()
     robot = Robot()
-    robot.move(20)
-    time.sleep(5)
+    robot.drop_off_package()
+    time.sleep(1)
+    robot.drop_off_package()
     reset_brick()
-
+    
+    
 if __name__ == "__main__":
+    
     main()

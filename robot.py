@@ -40,15 +40,15 @@ class Robot:
         self.go_home_flag = threading.Event()
         wait_ready_sensors()
 
-    def turn_right_90(self, power=15, right_turn_90_deg_delay=2.0):
+    def turn_right_90(self, power=15, right_turn_90_deg_delay=1.5):
         self.stop_moving()
         print("Turning right")
         self.left_wheel.spin_wheel_continuously(power)
-        self.right_wheel.spin_wheel_continuously(-power)
+        #self.right_wheel.spin_wheel_continuously(-power)
         time.sleep(right_turn_90_deg_delay)
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
-        self.us_sensor.wall_pointed_to = "long"
+        #self.us_sensor.wall_pointed_to = "long"
 
     def turn_left_90(self, power=15, left_turn_90_deg_delay=2.0):
         self.stop_moving()
@@ -68,7 +68,7 @@ class Robot:
         
         self.stop_moving()
         readjustment_power = 15
-        delay_time = 2
+        delay_time = 0.5
 
         if direction == "left":
             print("Readjusting left")
@@ -77,9 +77,9 @@ class Robot:
             time.sleep(delay_time)
             # self.left_wheel.stop_spinning()
             self.right_wheel.stop_spinning()
-            time.sleep(delay_time / 2)
+            time.sleep(delay_time)
             # Counter-correction to straighten
-            self.left_wheel.spin_wheel_continuously(readjustment_power)
+            self.left_wheel.spin_wheel_continuously(readjustment_power+5)
             # self.right_wheel.spin_wheel_continuously(-readjustment_power // 2)
             time.sleep(delay_time)
             self.stop_moving()
@@ -90,7 +90,7 @@ class Robot:
             self.left_wheel.spin_wheel_continuously(readjustment_power)
             time.sleep(delay_time)
             self.left_wheel.stop_spinning()
-            time.sleep(delay_time / 2)
+            time.sleep(delay_time)
 
             # Counter-correction to straighten
             self.right_wheel.spin_wheel_continuously(readjustment_power)
@@ -210,7 +210,6 @@ class Robot:
         self.drop_off_system.deliver_package(self.packages_delivered)
         self.speaker.play_delivery_tone()
         print("PACKED DROPPED")
-        self.drop_off_system.deliver_package(self.packages_delivered)
         self.packages_delivered += 1
         self.package_dropped = True
         if self.packages_delivered == 2:

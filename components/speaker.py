@@ -2,10 +2,8 @@ from utils.sound import Sound
 
 class Speaker:
     def __init__(self):
-        self.speaker = Sound()
+        self.tone1 = Sound(pitch="C5", duration=0.5, volume=100)
         
     def play_delivery_tone(self):
-        tone1 = Sound(pitch="C5", duration=0.2, volume=70)
-        tone2 = Sound(pitch="E5", duration=0.2, volume=70)
-        tone1.play().wait_done()
-        tone2.play().wait_done()
+        self.tone1.play()
+        print("Played tone 1")
