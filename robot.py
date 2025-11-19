@@ -141,10 +141,10 @@ class Robot:
                     else:
                         self.location = "outside"
                     if RIGHT_TURNS[self.right_turns_passed] != "home_invalid":
-                        self.turn_right(90)
+                        self.turn_right(10)
                     elif RIGHT_TURNS[self.right_turns_passed] == "home_valid" and self.go_home_flag.is_set():
-                        self.turn_right(90)
-                    if(RIGHT_TURNS[self.right_turns_passed]!="home_invalid"):
+                        self.turn_right(10)
+                    if RIGHT_TURNS[self.right_turns_passed]!= "home_invalid":
                         self.turn_right(10)
                     self.right_turns_passed += 1
                     self.stop_flag.clear()
@@ -180,6 +180,8 @@ class Robot:
                     self.stop_flag.set()
                     self.right_wheel.stop_spinning()
                     self.left_wheel.stop_spinning()
+                    if self.color_sensing_system.is_in_front:
+                        self.color_sensing_system.move_sensor_to_side()
                     self.color_sensing_system.move_sensor_side_to_side()
                 # Sweeping reaches end of room
                 elif self.color_sensing_system.detect_room_end.is_set() and self.location == "room":
