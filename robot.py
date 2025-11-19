@@ -110,7 +110,7 @@ class Robot:
             self.color_sensing_system.start_detecting_color()
             self.us_sensor.start_monitoring_distance()
 
-            while true:
+            while True:
                 if self.emergency_touch_sensor.is_pressed():
                     self.emergency_stop()
 
@@ -132,8 +132,8 @@ class Robot:
                     if RIGHT_TURNS[self.right_turns_passed]!= "home_invalid":
                         self.turn_right_90()
                     self.right_turns_passed += 1
-                    self.left_wheel.spin_wheel_continuously(int(power/5))
-                    self.right_wheel.spin_wheel_continuously(int(power/5))
+                    self.left_wheel.spin_wheel_continuously(power)
+                    self.right_wheel.spin_wheel_continuously(power)
                     self.color_sensing_system.detect_hallway_on_right_flag.clear()
                     self.room_swept = False
                 # 180 on invalid offices
@@ -141,8 +141,8 @@ class Robot:
                     print("Invalid room, going back")
                     self.stop_moving()
                     self.turn_right_90()
-                    self.left_wheel.spin_wheel_continuously(int(power/5))
-                    self.right_wheel.spin_wheel_continuously(int(power/5))
+                    self.left_wheel.spin_wheel_continuously(power)
+                    self.right_wheel.spin_wheel_continuously(power)
                     self.color_sensing_system.detect_invalid_entrance_flag.clear()
                 # Check room for valid entrance
                 elif self.color_sensing_system.detect_valid_entrance_flag.is_set():
@@ -164,8 +164,8 @@ class Robot:
                 elif self.color_sensing_system.detect_room_end.is_set() and self.location == "room":
                     self.stop_moving()
                     self.turn_right_90()
-                    self.left_wheel.spin_wheel_continuously(int(power / 5))
-                    self.right_wheel.spin_wheel_continuously(int(power / 5))
+                    self.left_wheel.spin_wheel_continuously(power)
+                    self.right_wheel.spin_wheel_continuously(power)
                     self.color_sensing_system.detect_room_end.clear()
                     self.room_swept = True
                 # Drop off package on green sticker
@@ -175,16 +175,16 @@ class Robot:
                     self.drop_off_package()
                     self.turn_right_90()
                     self.turn_right_90()
-                    self.left_wheel.spin_wheel_continuously(int(power/5))
-                    self.right_wheel.spin_wheel_continuously(int(power/5))
+                    self.left_wheel.spin_wheel_continuously(power)
+                    self.right_wheel.spin_wheel_continuously(power)
                     self.color_sensing_system.detect_valid_sticker_flag.clear()
                     self.room_swept = True
 
                 if self.location == "outside" and direction != "ok":
                     self.readjust_alignment(direction)
                 elif direction == "ok":
-                    self.left_wheel.spin_wheel_continuously(int(power/5))
-                    self.right_wheel.spin_wheel_continuously(int(power/5))
+                    self.left_wheel.spin_wheel_continuously(power)
+                    self.right_wheel.spin_wheel_continuously(power)
 
                 if self.location == "outside" and self.color_sensing_system.is_in_front:
                     self.color_sensing_system.move_sensor_to_side()
