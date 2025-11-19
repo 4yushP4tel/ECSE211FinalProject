@@ -31,10 +31,10 @@ class Robot:
         self.location = "outside"
         self.right_wheel = Wheel('B')
         self.left_wheel = Wheel('C')
-        self.drop_off_system = DropOffSystem('A')
+        self.drop_off_system = DropOffSystem('D')
         self.speaker = Speaker()
         self.us_sensor = UltrasonicSensor(4)
-        self.color_sensing_system = ColorSensingSystem(2, 'D')
+        self.color_sensing_system = ColorSensingSystem(1, 'A')
         self.emergency_touch_sensor = TouchSensor(3)
         self.move_thread = None
         self.stop_flag = threading.Event()
