@@ -11,18 +11,14 @@ import threading
 
 # This will store what each right turn which we detect means
 RIGHT_TURNS = [ "room",
-                "room_return",
                 "home_valid",
                 "turn",
                 "room",
-                "room_return",
                 "home_invalid",
                 "turn",
                 "room",
-                "room_return",
                 "home_valid",
                 "room",
-                "room_return",
                 "home_invalid",
                 "turn" ]
 
@@ -64,7 +60,6 @@ class Robot:
         self.left_wheel.spin_wheel_continuously(-power)
         self.right_wheel.spin_wheel_continuously(power)
         self.us_sensor.wall_pointed_to = "short"
-
 
     def readjust_alignment(self, direction: str):
         # this would take info from the US sensor to check the distance from
@@ -158,8 +153,11 @@ class Robot:
                     self.stop_flag.set()
                     self.left_wheel.stop_spinning()
                     self.right_wheel.stop_spinning()
-                    self.turn_right(180)
+                    self.left_wheel.rotate_wheel_continuously(90)
+                    self.right_wheel.rotate_wheel_continuously(-90)
+                    self.right_wheel.wait_is_stopped()
                     self.stop_flag.clear()
+                    self.location = "outside"
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
                     self.color_sensing_system.detect_invalid_entrance_flag.clear()
@@ -228,12 +226,8 @@ class Robot:
         self.move_thread.start()
     
     def stop_moving(self):
-        if not self.stop_flag.is_set():
-            self.stop_flag.set()
-        self.us_sensor.stop_monitoring_distance()
-        if self.move_thread and self.move_thread.is_alive() and threading.current_thread() != self.move_thread:
-            self.move_thread.join()
-        time.sleep(0.2)
+        self.left_wheel.stop_spinning()
+        self.right_wheel.stop_spinning()
 
     def check_could_enter_room(self) -> bool:
         self.turn_right(10)
