@@ -15,7 +15,7 @@ class UltrasonicSensor:
         self.us_sensor = EV3UltrasonicSensor(sensor_port)
         self.wall_pointed_to = "short"
         self.latest_distance = float('inf')
-        self.latest_direction = "ok"
+        self.latest_readjustment_direction = "ok"
         self.lock = threading.Lock()
         self.stop_flag = threading.Event()
         self.monitor_distance_thread = None
@@ -39,7 +39,7 @@ class UltrasonicSensor:
             direction = self.check_adjustment(distance, self.wall_pointed_to)
             with self.lock:
                 self.latest_distance = distance
-                self.latest_direction = direction
+                self.latest_readjustment_direction = direction
             print(f"US Sensor Distance: {distance} cm, Adjustment Needed: {direction}")
             # allows the monitor loop to be interruptible
             for _ in range(5):
