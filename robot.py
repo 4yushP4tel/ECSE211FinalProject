@@ -129,8 +129,8 @@ class Robot:
                         self.turn_right_90()
                     elif RIGHT_TURNS[self.right_turns_passed] == "home_valid" and self.go_home_flag.is_set():
                         self.turn_right_90()
-                    if(RIGHT_TURNS[self.right_turns_passed]!="home_invalid"):
-                        self.turn_right_90(10)
+                    if RIGHT_TURNS[self.right_turns_passed]!= "home_invalid":
+                        self.turn_right_90()
                     self.right_turns_passed += 1
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
@@ -140,7 +140,7 @@ class Robot:
                 elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
                     print("Invalid room, going back")
                     self.stop_moving()
-                    self.turn_right_90(180)
+                    self.turn_right_90()
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
                     self.color_sensing_system.detect_invalid_entrance_flag.clear()
@@ -163,7 +163,7 @@ class Robot:
                 # Sweeping reaches end of room
                 elif self.color_sensing_system.detect_room_end.is_set() and self.location == "room":
                     self.stop_moving()
-                    self.turn_right_90(10)
+                    self.turn_right_90()
                     self.left_wheel.spin_wheel_continuously(int(power / 5))
                     self.right_wheel.spin_wheel_continuously(int(power / 5))
                     self.color_sensing_system.detect_room_end.clear()
@@ -173,7 +173,8 @@ class Robot:
                     print("Found green sticker")
                     self.stop_moving()
                     self.drop_off_package()
-                    self.turn_right_90(180)
+                    self.turn_right_90()
+                    self.turn_right_90()
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
                     self.color_sensing_system.detect_valid_sticker_flag.clear()
