@@ -182,6 +182,9 @@ class Robot:
 
                 if self.location == "outside" and direction != "ok":
                     self.readjust_alignment(direction)
+                elif direction == "ok":
+                    self.left_wheel.spin_wheel_continuously(int(power/5))
+                    self.right_wheel.spin_wheel_continuously(int(power/5))
 
                 if self.location == "outside" and self.color_sensing_system.is_in_front:
                     self.color_sensing_system.move_sensor_to_side()
