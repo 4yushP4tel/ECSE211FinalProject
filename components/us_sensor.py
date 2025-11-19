@@ -1,18 +1,18 @@
 import threading
-from time import time
+import time
 from utils.brick import EV3UltrasonicSensor
 
 class UltrasonicSensor:
     # the distances are always on the right of the robot
-    SHORT_DISTANCE_FROM_WALL = 13
+    SHORT_DISTANCE_FROM_WALL = 4
     LONG_DISTANCE_FROM_WALL = 85
-    THRESHOLD_DISTANCE = 1
+    THRESHOLD_DISTANCE = 2
     ACCEPTABLE_DISTANCES = {
         "short": (SHORT_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, SHORT_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE),
         "long": (LONG_DISTANCE_FROM_WALL-THRESHOLD_DISTANCE, LONG_DISTANCE_FROM_WALL+THRESHOLD_DISTANCE)
     }
-    def __init__(self):
-        self.us_sensor = EV3UltrasonicSensor(4)
+    def __init__(self, sensor_port: int):
+        self.us_sensor = EV3UltrasonicSensor(sensor_port)
         self.wall_pointed_to = "short"
         self.latest_distance = float('inf')
         self.latest_direction = "ok"
@@ -40,7 +40,8 @@ class UltrasonicSensor:
             with self.lock:
                 self.latest_distance = distance
                 self.latest_direction = direction
-            time.sleep(0.2)
+            print(f"US Sensor Distance: {distance} cm, Adjustment Needed: {direction}")
+            time.sleep(0.5)
 
     def get_distance(self)->float:
         distance = self.us_sensor.get_cm()
