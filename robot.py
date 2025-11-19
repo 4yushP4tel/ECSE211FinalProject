@@ -37,7 +37,6 @@ class Robot:
         self.color_sensing_system = ColorSensingSystem(4, 'A')
         self.emergency_touch_sensor = TouchSensor(2)
         self.move_thread = None
-        self.stop_flag = threading.Event()
         self.go_home_flag = threading.Event()
         wait_ready_sensors()
 
@@ -47,8 +46,7 @@ class Robot:
         while self.color_sensing_system.most_recent_color == "Black" and self.color_sensing_system.prev_color == "White":
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(-power)
-        self.left_wheel.stop_spinning()
-        self.right_wheel.stop_spinning()
+        self.stop_moving()
         self.us_sensor.wall_pointed_to = "long"
 
     def turn_left(self, power):
@@ -67,8 +65,7 @@ class Robot:
         if direction == "ok":
             return
         
-        self.left_wheel.stop_spinning()
-        self.right_wheel.stop_spinning()
+        self.stop_moving()
         readjustment_power = 15
         delay_time = 0.25
 
@@ -84,8 +81,7 @@ class Robot:
             self.left_wheel.spin_wheel_continuously(readjustment_power)
             # self.right_wheel.spin_wheel_continuously(-readjustment_power // 2)
             time.sleep(delay_time)
-            self.left_wheel.stop_spinning()
-            self.right_wheel.stop_spinning()
+            self.stop_moving()
 
         elif direction == "right":
             print("Readjusting right")
@@ -93,15 +89,13 @@ class Robot:
             self.left_wheel.spin_wheel_continuously(readjustment_power)
             self.right_wheel.spin_wheel_continuously(-readjustment_power)
             time.sleep(delay_time)
-            self.left_wheel.stop_spinning()
-            self.right_wheel.stop_spinning()
+            self.stop_moving()
 
             # Counter-correction to straighten
             self.left_wheel.spin_wheel_continuously(-readjustment_power // 2)
             self.right_wheel.spin_wheel_continuously(readjustment_power // 2)
             time.sleep(delay_time / 2)
-            self.left_wheel.stop_spinning()
-            self.right_wheel.stop_spinning()
+            self.stop_moving()
 
         with self.us_sensor.lock:
             direction = self.us_sensor.latest_direction
@@ -110,15 +104,13 @@ class Robot:
 
     def move(self, power:int):
         self.stop_moving()
-        if self.stop_flag.is_set():
-            self.stop_flag.clear()
         def move_loop():
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(power)
             self.color_sensing_system.start_detecting_color()
             self.us_sensor.start_monitoring_distance()
 
-            while not self.stop_flag.is_set():
+            while true:
                 if self.emergency_touch_sensor.is_pressed():
                     self.emergency_stop()
 
@@ -128,9 +120,7 @@ class Robot:
                 # Turn right on valid intersections
                 if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
                     print("Detected path on right")
-                    self.stop_flag.set()
-                    self.left_wheel.stop_spinning()
-                    self.right_wheel.stop_spinning()
+                    self.stop_moving()
                     if self.location == "outside":
                         self.location = "hallway"
                     else:
@@ -142,7 +132,6 @@ class Robot:
                     if RIGHT_TURNS[self.right_turns_passed]!= "home_invalid":
                         self.turn_right(10)
                     self.right_turns_passed += 1
-                    self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
                     self.color_sensing_system.detect_hallway_on_right_flag.clear()
@@ -150,13 +139,10 @@ class Robot:
                 # 180 on invalid offices
                 elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
                     print("Invalid room, going back")
-                    self.stop_flag.set()
-                    self.left_wheel.stop_spinning()
-                    self.right_wheel.stop_spinning()
+                    self.stop_moving()
                     self.left_wheel.rotate_wheel_continuously(90)
                     self.right_wheel.rotate_wheel_continuously(-90)
                     self.right_wheel.wait_is_stopped()
-                    self.stop_flag.clear()
                     self.location = "outside"
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
@@ -164,30 +150,23 @@ class Robot:
                 # Check room for valid entrance
                 elif self.color_sensing_system.detect_valid_entrance_flag.is_set():
                     print("Valid room")
-                    self.stop_flag.set()
                     # Remains in mail room when done
                     if self.go_home_flag.is_set():
                         time.sleep(1)
                         break
-                    self.stop_flag.clear()
                     self.color_sensing_system.detect_valid_entrance_flag.clear()
                 # Sweep width of room to check for sticker
                 elif self.color_sensing_system.detect_room.is_set() and not self.room_swept:
                     print("Sweeping area")
                     self.location = "room"
-                    self.stop_flag.set()
-                    self.right_wheel.stop_spinning()
-                    self.left_wheel.stop_spinning()
+                    self.stop_moving()
                     if self.color_sensing_system.is_in_front:
                         self.color_sensing_system.move_sensor_to_side()
                     self.color_sensing_system.move_sensor_side_to_side()
                 # Sweeping reaches end of room
                 elif self.color_sensing_system.detect_room_end.is_set() and self.location == "room":
-                    self.stop_flag.set()
-                    self.right_wheel.stop_spinning()
-                    self.left_wheel.stop_spinning()
+                    self.stop_moving()
                     self.turn_right(180)
-                    self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(int(power / 5))
                     self.right_wheel.spin_wheel_continuously(int(power / 5))
                     self.color_sensing_system.detect_room_end.clear()
@@ -195,12 +174,9 @@ class Robot:
                 # Drop off package on green sticker
                 elif self.color_sensing_system.detect_valid_sticker_flag.is_set():
                     print("Found green sticker")
-                    self.stop_flag.set()
-                    self.right_wheel.stop_spinning()
-                    self.left_wheel.stop_spinning()
+                    self.stop_moving()
                     self.drop_off_package()
                     self.turn_right(180)
-                    self.stop_flag.clear()
                     self.left_wheel.spin_wheel_continuously(int(power/5))
                     self.right_wheel.spin_wheel_continuously(int(power/5))
                     self.color_sensing_system.detect_valid_sticker_flag.clear()
@@ -217,8 +193,7 @@ class Robot:
                     self.color_sensing_system.move_sensor_to_front()
                 self.package_dropped = False
             
-            self.left_wheel.stop_spinning()
-            self.right_wheel.stop_spinning()
+            self.stop_moving()
             self.color_sensing_system.stop_detecting_color()
             self.us_sensor.stop_monitoring_distance()
                 
@@ -229,53 +204,18 @@ class Robot:
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
 
-    def check_could_enter_room(self) -> bool:
-        self.turn_right(10)
-        time.sleep(0.5)
-        self.color_sensing_system.move_sensor_to_front()
-        time.sleep(0.5)
-        color = self.color_sensing_system.detect_color()
-        while color != "Red":
-            self.move(20)
-            if color == "Orange":
-                self.stop_moving()
-                return True
-        return False
-            
-    def go_back_to_hallway_from_entrance(self, power:int):
-        """
-        the power is the power at which you should move backwards
-        """
-        self.stop_moving()
-        while self.color_sensing_system.most_recent_color != "Black":
-            # basically moving backwards
-            self.move(-power)
-        time.sleep(0.5)
-        self.turn_left(10)
-        time.sleep(0.5)
-        self.stop_moving()
-
-    def go_back_to_room_entrance(self, power:int):
-        pass
-
-    def enter_room(self):
-        pass
-    
-    def sweep_room(self):
-        pass
-
     def drop_off_package(self):
         self.stop_moving()
-        self.drop_off_system.deliver_package(self.packages_delivered)
         self.speaker.play_delivery_tone()
+        print("PACKED DROPPED")
+        self.drop_off_system.deliver_package(self.packages_delivered)
         self.packages_delivered += 1
         self.package_dropped = True
         if self.packages_delivered == 2:
             self.go_home_flag.set()
 
     def emergency_stop(self):
-        self.left_wheel.stop_spinning()
-        self.right_wheel.stop_spinning()
+        self.stop_moving()
         self.color_sensing_system.stop_detecting_color()
         self.us_sensor.stop_monitoring_distance()
         print("EMERGENCY STOP ACTIVATED")
