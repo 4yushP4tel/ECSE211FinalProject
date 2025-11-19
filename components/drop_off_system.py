@@ -4,8 +4,9 @@ import time
 class DropOffSystem:
     def __init__(self, motor_port):
         self.motor = Motor(motor_port)
+        
 
-    def deliver_package(self):
+    def deliver_package(self, packages_delivered: int):
         """
         This sytem will move the small motor in a full circle
         to drop push the lowest package off the stack and allow the next one to

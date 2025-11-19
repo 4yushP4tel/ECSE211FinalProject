@@ -4,18 +4,18 @@ import math
 from utils.brick import EV3ColorSensor, Motor
 
 # RGB reference data (normalized)
-COLOR_DATA = {
-    'blue': [0.199, 0.209, 0.591],
-    'green': [0.349, 0.504, 0.147],
-    'red': [0.761, 0.099, 0.140],
-    'yellow': [0.499, 0.383, 0.118],
-    # 'no_color': [0.2910104513580598, 0.24223880535893885, 0.46675074328300137],
-    'black': [0.323, 0.327, 0.350],
-    'white': [0.301, 0.241, 0.457],
-    'orange': [0.432, 0.214, 0.354]
+color_data = {
+    'orange': [173.44, 81.67, 27.17],
+    'yellow': [199.61, 164.11, 39.06],
+    'white': [234.59, 245.94, 296.59],
+    'green': [106.35, 169.82, 41.88],
+    'red': [140.06, 18.89, 22.22],
+    'black': [33.70, 35.45, 21.35],
+    'blue': [114.95, 167.65, 247.30]
 }
 
-class ColorSensingSystem:
+class   ColorSensingSystem:
+    TURN_DEGREES = 90
 
     def __init__(self, sensor_port, motor_port):
         self.color_sensor = EV3ColorSensor(sensor_port)
@@ -36,27 +36,25 @@ class ColorSensingSystem:
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
         self.motor.reset_encoder()
-        self.motor.set_limits(dps=90)
-        self.motor.set_position(90)
+        self.motor.set_position(ColorSensingSystem.TURN_DEGREES)
         self.motor.wait_is_stopped()
         self.is_in_front = True
+        time.sleep(0.2)
 
     def move_sensor_to_side(self):
         """Moves the sensor back to the side of the robot after it leaves a room."""
         self.motor.reset_encoder()
-        self.motor.set_limits(dps=90)
-        self.motor.set_position(-90)
+        self.motor.set_position(-ColorSensingSystem.TURN_DEGREES)
         self.motor.wait_is_stopped()
         self.is_in_front = False
+        time.sleep(0.2)
 
     def move_sensor_side_to_side(self):
         """Moves sensor side to side for sticker detection"""
-        self.motor.set_limits(dps=90)
-        self.move_sensor_to_side()
         self.motor.reset_encoder()
-        self.motor.set_position(180)
-        self.motor.wait_is_stopped()
-        self.motor.set_position(-180)
+        self.move_sensor_to_side()
+        self.motor.set_dps(100)
+        self.motor.set_position(-150)
 
     def detect_color(self):
         """
@@ -67,35 +65,42 @@ class ColorSensingSystem:
         print(f"RGB sensed: {rgb}")
         return self._detect_color_from_rgb(rgb)
 
-    def _detect_color_from_rgb(self, rgb):
-        """Internal helper: detect closest color from RGB using Euclidean distance."""
-        r, g, b = rgb
-        denominator = r + g + b
-        if denominator == 0:
-            normalized_rgb = [0, 0, 0]
-        else:
-            normalized_rgb = [r / denominator, g / denominator, b / denominator]
 
+    def detect_color_from_rgb(rgb):
+        """
+        Detect the closest matching color using raw RGB values
+        
+        Args:
+            rgb: tuple of (R, G, B) values
+        
+        Returns:
+            str: name of the closest matching color
+        """
+        r, g, b = rgb
+        
         min_distance = float('inf')
-        closest_color = 'Unknown'
-        for color_name, color_mean in COLOR_DATA.items():
+        closest_color = None
+        
+        # Calculate Euclidean distance to each color
+        for color_name, color_mean in color_data.items():
             distance = math.sqrt(
-                (normalized_rgb[0] - color_mean[0]) ** 2 +
-                (normalized_rgb[1] - color_mean[1]) ** 2 +
-                (normalized_rgb[2] - color_mean[2]) ** 2
+                (r - color_mean[0]) ** 2 +
+                (g - color_mean[1]) ** 2 +
+                (b - color_mean[2]) ** 2
             )
+            
             if distance < min_distance:
                 min_distance = distance
                 closest_color = color_name
-
-        return closest_color.capitalize()  # e.g., "Red", "Green"
+        
+        return closest_color
     
     def detect_color_loop(self):
         while not self.stop_sensing_flag.is_set():
             prev_color = self.most_recent_color
             color = self.detect_color()
             with self.color_lock:
-                if self.prev_color == "White" and color == "Black":
+                if self.prev_color == "white" and color == "black":
                     self.detect_hallway_on_right_flag.set()
                 elif color == "red":
                     self.detect_invalid_entrance_flag.set()
@@ -127,5 +132,5 @@ class ColorSensingSystem:
     def detect_hallway_on_right(self):
         if(not self.is_in_front()):
             color = self.detect_color()
-            return color.lower() == "Black"
+            return color.lower() == "black"
         return False
