@@ -37,9 +37,9 @@ class Robot:
         self.left_wheel = Wheel('C')
         self.drop_off_system = DropOffSystem('D')
         self.speaker = Speaker()
-        self.us_sensor = UltrasonicSensor(4)
-        self.color_sensing_system = ColorSensingSystem(1, 'A')
-        self.emergency_touch_sensor = TouchSensor(3)
+        self.us_sensor = UltrasonicSensor(1)
+        self.color_sensing_system = ColorSensingSystem(4, 'A')
+        self.emergency_touch_sensor = TouchSensor(2)
         self.move_thread = None
         self.stop_flag = threading.Event()
         self.go_home_flag = threading.Event()
