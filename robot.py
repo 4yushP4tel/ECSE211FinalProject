@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from components.wheel import Wheel
@@ -5,7 +6,7 @@ from components.us_sensor import UltrasonicSensor
 from components.color_sensing_system import ColorSensingSystem
 from components.speaker import Speaker
 from components.drop_off_system import DropOffSystem
-from utils.brick import TouchSensor, wait_ready_sensors
+from utils.brick import TouchSensor, reset_brick, wait_ready_sensors
 import threading
 
 # This will store what each right turn which we detect means
@@ -73,25 +74,25 @@ class Robot:
         
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
-        readjustment_power = 10
-        delay_time = 0.15
+        readjustment_power = 15
+        delay_time = 0.25
 
-        if direction == "l":
+        if direction == "left":
             print("Readjusting left")
-            self.left_wheel.spin_wheel_continuously(-readjustment_power)
+            # self.left_wheel.spin_wheel_continuously(-readjustment_power)
             self.right_wheel.spin_wheel_continuously(readjustment_power)
+            time.sleep(delay_time)
+            # self.left_wheel.stop_spinning()
+            self.right_wheel.stop_spinning()
+
+            # Counter-correction to straighten
+            self.left_wheel.spin_wheel_continuously(readjustment_power)
+            # self.right_wheel.spin_wheel_continuously(-readjustment_power // 2)
             time.sleep(delay_time)
             self.left_wheel.stop_spinning()
             self.right_wheel.stop_spinning()
 
-            # Counter-correction to straighten
-            self.left_wheel.spin_wheel_continuously(readjustment_power // 2)
-            self.right_wheel.spin_wheel_continuously(-readjustment_power // 2)
-            time.sleep(delay_time / 2)
-            self.left_wheel.stop_spinning()
-            self.right_wheel.stop_spinning()
-
-        elif direction == "r":
+        elif direction == "right":
             print("Readjusting right")
             # Turn slightly right
             self.left_wheel.spin_wheel_continuously(readjustment_power)
@@ -280,4 +281,7 @@ class Robot:
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
         self.color_sensing_system.stop_detecting_color()
-        sys.exit(1)
+        self.us_sensor.stop_monitoring_distance()
+        print("EMERGENCY STOP ACTIVATED")
+        reset_brick()
+        os._exit(1)

@@ -41,7 +41,11 @@ class UltrasonicSensor:
                 self.latest_distance = distance
                 self.latest_direction = direction
             print(f"US Sensor Distance: {distance} cm, Adjustment Needed: {direction}")
-            time.sleep(0.5)
+            # allows the monitor loop to be interruptible
+            for _ in range(5):
+                if self.stop_flag.is_set():
+                    return
+                time.sleep(0.1)
 
     def get_distance(self)->float:
         distance = self.us_sensor.get_cm()
@@ -55,4 +59,4 @@ class UltrasonicSensor:
             print(f"Invalid wall_pointed_to: {wall_pointed_to}. Must be 'short' or 'long'.")
         
         low, high = UltrasonicSensor.ACCEPTABLE_DISTANCES[wall_pointed_to]
-        return "l" if curr_distance>high else "r" if curr_distance<low else "ok"
+        return "left" if curr_distance>high else "right" if curr_distance<low else "ok"

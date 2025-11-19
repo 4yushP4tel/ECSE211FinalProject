@@ -40,7 +40,7 @@ class ColorSensingSystem:
         self.motor.set_position(ColorSensingSystem.TURN_DEGREES)
         self.motor.wait_is_stopped()
         self.is_in_front = True
-        time.sleep(0.5)
+        time.sleep(0.2)
 
     def move_sensor_to_side(self):
         """Moves the sensor back to the side of the robot after it leaves a room."""
@@ -48,7 +48,7 @@ class ColorSensingSystem:
         self.motor.set_position(-ColorSensingSystem.TURN_DEGREES)
         self.motor.wait_is_stopped()
         self.is_in_front = False
-        time.sleep(0.5)
+        time.sleep(0.2)
 
     def move_sensor_side_to_side(self):
         """Moves sensor side to side for sticker detection"""
