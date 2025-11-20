@@ -4,7 +4,7 @@ class Wheel:
     def __init__(self, port):
         self.motor = Motor(port)
 
-    def rotate_wheel_degrees(self, angle):
+    def rotate_wheel_degrees(self, degrees:int):
         self.motor.reset_encoder()
         self.motor.set_limits(dps=90)
         self.motor.set_position(degrees)
