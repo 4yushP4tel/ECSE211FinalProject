@@ -41,7 +41,7 @@ class Robot:
         self.go_home_flag = threading.Event()
         wait_ready_sensors()
 
-    def initialize(self, power: int):
+    def start_delivery(self, power: int):
         self.stop_moving()
         self.color_sensing_system.start_detecting_color()
         self.color_sensing_system.start_sweep()
