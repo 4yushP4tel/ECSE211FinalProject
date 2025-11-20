@@ -23,7 +23,9 @@ RIGHT_TURNS = [ "room",
                 "turn" ]
 
 class Robot:
+    HALLWAY_MOVING_POWER=15
     def __init__(self):
+        wait_ready_sensors()
         self.right_turns_passed = 0
         self.packages_delivered = 0
         self.package_dropped = False
@@ -36,9 +38,9 @@ class Robot:
         self.us_sensor = UltrasonicSensor(1)
         self.color_sensing_system = ColorSensingSystem(2, 'D')
         self.emergency_touch_sensor = TouchSensor(3)
-        self.move_thread = None
+        self.move_in_hallway_thread = None
         self.go_home_flag = threading.Event()
-        wait_ready_sensors()
+        self.stop_moving_in_hallway_thread_flag = threading.Event()
 
     def turn_right_90(self, power=15, right_turn_90_deg_delay=1.5):
         self.stop_moving()
@@ -48,7 +50,6 @@ class Robot:
         time.sleep(right_turn_90_deg_delay)
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
-        #self.us_sensor.wall_pointed_to = "long"
 
     def turn_left_90(self, power=15, left_turn_90_deg_delay=2.0):
         self.stop_moving()
@@ -58,64 +59,78 @@ class Robot:
         time.sleep(left_turn_90_deg_delay)
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
-        self.us_sensor.wall_pointed_to = "short"
 
     def readjust_alignment(self, direction: str):
         # this would take info from the US sensor to check the distance from
         #the right wall and readjust if the distance is too large or small
-        if direction == "ok":
-            return
-        
         self.stop_moving()
-        readjustment_power = 15
-        delay_time = 0.5
+        while direction != "ok":
+            readjustment_power = 15
+            delay_time = 0.5
 
-        if direction == "left":
-            print("Readjusting left")
-            # self.left_wheel.spin_wheel_continuously(-readjustment_power)
-            self.right_wheel.spin_wheel_continuously(readjustment_power)
-            time.sleep(delay_time)
-            # self.left_wheel.stop_spinning()
-            self.right_wheel.stop_spinning()
-            time.sleep(delay_time)
-            # Counter-correction to straighten
-            self.left_wheel.spin_wheel_continuously(readjustment_power+5)
-            # self.right_wheel.spin_wheel_continuously(-readjustment_power // 2)
-            time.sleep(delay_time)
-            self.stop_moving()
+            if direction == "left":
+                print("Readjusting left")
+                self.right_wheel.spin_wheel_continuously(readjustment_power)
+                time.sleep(delay_time)
+                self.right_wheel.stop_spinning()
+                time.sleep(delay_time)
+                # Counter-correction to straighten
+                self.left_wheel.spin_wheel_continuously(readjustment_power+5)
+                time.sleep(delay_time)
+                self.stop_moving()
 
-        elif direction == "right":
-            print("Readjusting right")
-            # Turn slightly right
-            self.left_wheel.spin_wheel_continuously(readjustment_power)
-            time.sleep(delay_time)
-            self.left_wheel.stop_spinning()
-            time.sleep(delay_time)
+            elif direction == "right":
+                print("Readjusting right")
+                # Turn slightly right
+                self.left_wheel.spin_wheel_continuously(readjustment_power)
+                time.sleep(delay_time)
+                self.left_wheel.stop_spinning()
+                time.sleep(delay_time)
+                # Counter-correction to straighten
+                self.right_wheel.spin_wheel_continuously(readjustment_power)
+                time.sleep(delay_time)
+                self.stop_moving()
 
-            # Counter-correction to straighten
-            self.right_wheel.spin_wheel_continuously(readjustment_power)
-            time.sleep(delay_time)
-            self.stop_moving()
-
-        with self.us_sensor.lock:
-            direction = self.us_sensor.latest_readjustment_direction
-        
+            with self.us_sensor.lock:
+                direction = self.us_sensor.latest_readjustment_direction
         print("Readjustment complete")
+        self.stop_moving_in_hallway_thread_flag.clear()
 
-    def move(self, power:int):
+    def main(self):
+        self.color_sensing_system.start_detecting_color()
+        self.us_sensor.start_monitoring_distance()
+        self.move_in_hallway()  
+
+    def move_in_hallway(self, power:int=HALLWAY_MOVING_POWER):
+        self.stop_moving_in_hallway_thread_flag.clear()
         self.stop_moving()
-        def move_loop():
+        def move_loop():            
             self.left_wheel.spin_wheel_continuously(power)
             self.right_wheel.spin_wheel_continuously(power)
-            self.color_sensing_system.start_detecting_color()
-            self.us_sensor.start_monitoring_distance()
 
-            while True:
+            while not self.stop_moving_in_hallway_thread_flag.is_set():
+                self.stop_moving_in_hallway_thread_flag.wait()
+
                 if self.emergency_touch_sensor.is_pressed():
                     self.emergency_stop()
+                    break
 
                 with self.us_sensor.lock:
                     direction = self.us_sensor.latest_readjustment_direction
+
+                if self.location == "outside" and direction != "ok":
+                    self.readjust_alignment(direction)
+                elif direction == "ok":
+                    self.left_wheel.spin_wheel_continuously(power)
+                    self.right_wheel.spin_wheel_continuously(power)
+
+                if self.location == "outside" and self.color_sensing_system.is_in_front:
+                    self.color_sensing_system.move_sensor_to_side()
+                elif self.location == "hallway" and self.package_dropped and self.color_sensing_system.is_in_front:
+                    self.color_sensing_system.move_sensor_to_side()
+                elif self.location == "hallway" and not self.package_dropped and not self.color_sensing_system.is_in_front:
+                    self.color_sensing_system.move_sensor_to_front()
+                self.package_dropped = False
 
                 # Turn right on valid intersections
                 if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
@@ -180,28 +195,16 @@ class Robot:
                     self.color_sensing_system.detect_valid_sticker_flag.clear()
                     self.room_swept = True
 
-                if self.location == "outside" and direction != "ok":
-                    self.readjust_alignment(direction)
-                elif direction == "ok":
-                    self.left_wheel.spin_wheel_continuously(power)
-                    self.right_wheel.spin_wheel_continuously(power)
-
-                if self.location == "outside" and self.color_sensing_system.is_in_front:
-                    self.color_sensing_system.move_sensor_to_side()
-                elif self.location == "hallway" and self.package_dropped and self.color_sensing_system.is_in_front:
-                    self.color_sensing_system.move_sensor_to_side()
-                elif self.location == "hallway" and not self.package_dropped and not self.color_sensing_system.is_in_front:
-                    self.color_sensing_system.move_sensor_to_front()
-                self.package_dropped = False
             
             self.stop_moving()
             self.color_sensing_system.stop_detecting_color()
             self.us_sensor.stop_monitoring_distance()
                 
-        self.move_thread = threading.Thread(target=move_loop, daemon=True)
-        self.move_thread.start()
+        self.move_in_hallway_thread = threading.Thread(target=move_loop, daemon=True)
+        self.move_in_hallway_thread.start()
     
     def stop_moving(self):
+        self.stop_moving_in_hallway_thread_flag.set()
         self.left_wheel.stop_spinning()
         self.right_wheel.stop_spinning()
 
