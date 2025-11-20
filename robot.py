@@ -187,6 +187,7 @@ class Robot:
     def emergency_stop(self):
         self.stop_moving()
         self.color_sensing_system.stop_detecting_color()
+        self.color_sensing_system.stop_sweep()
         self.us_sensor.stop_monitoring_distance()
         print("EMERGENCY STOP ACTIVATED")
         reset_brick()
