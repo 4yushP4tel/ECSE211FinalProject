@@ -65,6 +65,7 @@ class   ColorSensingSystem:
         self.detect_home_flag = threading.Event()
         self.detect_room_flag = threading.Event()
         self.detect_room_end_flag = threading.Event()
+        self.detect_room_exit_flag = threading.Event()
         self.color_lock = threading.Lock()
 
     def move_sensor_side_to_side(self):
@@ -116,6 +117,8 @@ class   ColorSensingSystem:
                     self.detect_room_flag.set()
                 elif self.prev_color == "yellow" and (color == "white" or color=="grey"):
                     self.detect_room_end_flag.set()
+                elif self.prev_color == "yellow" and color == "orange":
+                    self.detect_room_exit_flag.set()
                 self.prev_color = prev_color
                 self.most_recent_color = color
             print(f"Detected Color: {color}. Previous Color: {prev_color}")
