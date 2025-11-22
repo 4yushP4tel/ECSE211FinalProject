@@ -199,7 +199,7 @@ class Robot:
         position_of_green_sticker = self.sweep_room_for_green_sticker()
         if position_of_green_sticker != float("inf"):
             self.rotate_for_delivery(position_of_green_sticker)
-            if self.color_sensing_system.is_in_front:
+            if self.color_sensing_system.is_in_front or self.color_sensing_system.motor.get_position==self.color_sensing_system.FRONT_POSITION:
                 self.color_sensing_system.move_sensor_to_right_side()
             self.drop_off_package()
             self.rotate_for_delivery(-position_of_green_sticker)
