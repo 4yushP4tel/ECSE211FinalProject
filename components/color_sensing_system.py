@@ -16,7 +16,8 @@ color_data = {
 }
 
 class   ColorSensingSystem:
-    TURN_DEGREES = 90
+    FRONT_POSITION = -93
+    ALL_THE_WAY_LEFT_POSITION = -180
 
     def __init__(self, sensor_port, motor_port):
         self.color_sensor = EV3ColorSensor(sensor_port)
@@ -30,32 +31,38 @@ class   ColorSensingSystem:
         self.detect_invalid_entrance_flag = threading.Event()
         self.detect_valid_entrance_flag = threading.Event()
         self.detect_valid_sticker_flag = threading.Event()
+        self.detect_room_exit_flag = threading.Event()
+        self.detect_entered_home_flag = threading.Event()
         self.detect_room = threading.Event()
         self.detect_room_end = threading.Event()
         self.color_lock = threading.Lock()
+        self.motor.reset_encoder()
+        self.motor.set_limits(power=20, dps=150)
 
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
-        self.motor.reset_encoder()
-        self.motor.set_position(ColorSensingSystem.TURN_DEGREES)
+        self.motor.set_position(ColorSensingSystem.FRONT_POSITION)
         self.motor.wait_is_stopped()
         self.is_in_front = True
         time.sleep(0.2)
 
-    def move_sensor_to_side(self):
+    def move_sensor_to_right_side(self):
         """Moves the sensor back to the side of the robot after it leaves a room."""
-        self.motor.reset_encoder()
-        self.motor.set_position(-ColorSensingSystem.TURN_DEGREES)
+        self.motor.set_position(0)
         self.motor.wait_is_stopped()
         self.is_in_front = False
         time.sleep(0.2)
 
     def move_sensor_side_to_side(self):
         """Moves sensor side to side for sticker detection"""
-        self.motor.reset_encoder()
-        self.move_sensor_to_side()
-        self.motor.set_dps(100)
-        self.motor.set_position(-150)
+        self.motor.set_position(0)
+        print("stopped finish" + f" {self.motor.get_position()}")
+        time.sleep(1.5)
+        self.motor.set_position(ColorSensingSystem.ALL_THE_WAY_LEFT_POSITION)
+        print("stopped finish 2" + f" {self.motor.get_position()}")
+        time.sleep(1.5)
+        self.is_in_front = False
+        
 
     def detect_color(self):
         """
@@ -98,25 +105,27 @@ class   ColorSensingSystem:
     
     def detect_color_loop(self):
         while not self.stop_sensing_flag.is_set():
-            prev_color = self.most_recent_color
             color = self.detect_color()
             with self.color_lock:
-                if (self.prev_color == "white" or self.prev_color=="grey") and color == "black":
+                self.prev_color = self.most_recent_color
+                self.most_recent_color = color
+                if (self.prev_color in ["white","grey"]) and color == "black":
                     self.detect_hallway_on_right_flag.set()
                 elif color == "red":
                     self.detect_invalid_entrance_flag.set()
-                elif color == "orange":
+                elif self.prev_color == "orange" and color == "yellow":
                     self.detect_valid_entrance_flag.set()
-                elif color == "green":
+                elif self.prev_color=="yellow" and color=="orange":
+                    self.detect_room_exit_flag.set()
+                elif self.prev_color=="green" and color == "green":
                     self.detect_valid_sticker_flag.set()
-                elif color == "yellow":
-                    self.detect_room.set()
-                elif self.prev_color == "yellow" and (color == "white" or color=="grey"):
+                elif self.prev_color == "yellow" and (color in ["white","grey"]):
                     self.detect_room_end.set()
-                self.prev_color = prev_color
-                self.most_recent_color = color
-            print(f"Detected Color: {color}. Previous Color: {prev_color}")
-            time.sleep(0.5)
+                elif self.prev_color=="orange" and color=="blue":
+                    self.detect_entered_home_flag.set()
+
+            print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
+            time.sleep(0.1)
 
     def start_detecting_color(self):
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
@@ -130,8 +139,3 @@ class   ColorSensingSystem:
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
             self.color_sensing_thread.join()
 
-    def detect_hallway_on_right(self):
-        if(not self.is_in_front()):
-            color = self.detect_color()
-            return color.lower() == "black"
-        return False
