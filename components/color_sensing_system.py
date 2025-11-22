@@ -16,8 +16,8 @@ color_data = {
 }
 
 class   ColorSensingSystem:
-    FRONT_POSITION = 90
-    ALL_THE_WAY_LEFT_POSITION = 180
+    FRONT_POSITION = -93
+    ALL_THE_WAY_LEFT_POSITION = -180
 
     def __init__(self, sensor_port, motor_port):
         self.color_sensor = EV3ColorSensor(sensor_port)
@@ -37,7 +37,7 @@ class   ColorSensingSystem:
         self.detect_room_end = threading.Event()
         self.color_lock = threading.Lock()
         self.motor.reset_encoder()
-        self.motor.set_limits(power=20, dps=250)
+        self.motor.set_limits(power=20, dps=150)
 
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
@@ -55,11 +55,14 @@ class   ColorSensingSystem:
 
     def move_sensor_side_to_side(self):
         """Moves sensor side to side for sticker detection"""
-        self.move_sensor_to_right_side()
+        self.motor.set_position(0)
+        print("stopped finish" + f" {self.motor.get_position()}")
+        time.sleep(1.5)
         self.motor.set_position(ColorSensingSystem.ALL_THE_WAY_LEFT_POSITION)
-        self.motor.wait_is_stopped()
+        print("stopped finish 2" + f" {self.motor.get_position()}")
+        time.sleep(1.5)
         self.is_in_front = False
-        time.sleep(0.2)
+        
 
     def detect_color(self):
         """
@@ -122,7 +125,7 @@ class   ColorSensingSystem:
                     self.detect_entered_home_flag.set()
 
             print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
-            time.sleep(0.5)
+            time.sleep(0.1)
 
     def start_detecting_color(self):
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():

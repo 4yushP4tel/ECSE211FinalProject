@@ -5,13 +5,23 @@ import time
 
 def main():
     # this function should run the entire circuit
-    robot = Robot()
-    robot.main()
-    time.sleep(10)
     reset_brick()
+    robot = Robot()
+    robot.color_sensing_system.start_detecting_color()
+    robot.head_home_after_turn()
+    #robot.main()
+    #robot.turn_right_90()
+    #robot.color_sensing_system.move_sensor_to_front()
+    #time.sleep(10)
+    #time.sleep(10)
+    
 
     
     
 if __name__ == "__main__":
     
-    main()
+    try:
+        main()
+        #eset_brick()
+    except KeyboardInterrupt:
+        reset_brick()

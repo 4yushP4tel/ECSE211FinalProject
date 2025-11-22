@@ -40,7 +40,7 @@ class GyroSensor:
             and self.check_if_moving_straight_on_path
             ):
                 self.readjust_robot_flag.set()
-            time.sleep(0.5)
+            time.sleep(0.1)
 
     def reset_orientation(self):
         #this should be done when the robot is turning into some room some 
