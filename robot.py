@@ -2,7 +2,7 @@ import os
 import sys
 import time
 from components.wheel import Wheel
-from components.us_sensor import UltrasonicSensor
+from components.gyro_sensor import GyroSensor
 from components.color_sensing_system import ColorSensingSystem
 from components.speaker import Speaker
 from components.drop_off_system import DropOffSystem
@@ -24,8 +24,10 @@ RIGHT_TURNS = [ "room",
 
 class Robot:
     FORWARD_MOVEMENT_POWER=15
+    POWER_FOR_TURN=20
     EXIT_ROOM_POWER=10
-    POWER_TIME_FOR_90_DEG = (15, 1.5)
+    READJUST_POWER=15
+    CHECK_READJUST_TIME_INTERVAL = 0.5
     def __init__(self):
         self.right_turns_passed = 0
         self.packages_delivered = 0
@@ -33,7 +35,7 @@ class Robot:
         self.left_wheel = Wheel('C')
         self.drop_off_system = DropOffSystem('A')
         self.speaker = Speaker()
-        self.us_sensor = UltrasonicSensor(1)
+        self.gyro_sensor = GyroSensor(1)
         self.color_sensing_system = ColorSensingSystem(2, 'D')
         self.emergency_touch_sensor = TouchSensor(3)
         self.go_home = False 
@@ -46,11 +48,11 @@ class Robot:
     def main(self):
         self.start_emergency_monitoring()
         self.color_sensing_system.start_detecting_color()
-        self.us_sensor.start_monitoring_distance()
+        self.gyro_sensor.start_monitoring_orientation()
         self.move_in_hallway() 
         self.stop_moving()
         self.color_sensing_system.stop_detecting_color()
-        self.us_sensor.stop_monitoring_distance() 
+        self.gyro_sensor.stop_monitoring_orientation() 
 
     def start_emergency_monitoring(self):
         # a dedicated thread to monitor the emergency button
@@ -69,61 +71,59 @@ class Robot:
                 break
             time.sleep(0.05)
 
-    def turn_right_90(self, power=POWER_TIME_FOR_90_DEG[0], right_turn_90_deg_delay=POWER_TIME_FOR_90_DEG[1]):
-        self.stop_moving()
+    def turn_right_90(self, power=POWER_FOR_TURN):
         print("Turning right")
-        with self.wheel_lock:
-            self.left_wheel.spin_wheel_continuously(power)
-            self.right_wheel.spin_wheel_continuously(-power)
-        time.sleep(right_turn_90_deg_delay)
+        while True:
+            with self.gyro_sensor.orientation_lock:
+                current_orientation = self.gyro_sensor.orientation
+            
+            if current_orientation >= 90:
+                break
+            with self.wheel_lock:
+                self.left_wheel.spin_wheel_continuously(power)
+                self.right_wheel.spin_wheel_continuously(-power)
         self.stop_moving()
+        self.gyro_sensor.reset_orientation()
 
-    def turn_left_90(self, power=POWER_TIME_FOR_90_DEG[0], left_turn_90_deg_delay=POWER_TIME_FOR_90_DEG[1]):
-        self.stop_moving()
+    def turn_left_90(self, power=POWER_FOR_TURN):
         print("Turning left")
-        with self.wheel_lock:
-            self.left_wheel.spin_wheel_continuously(-power)
-            self.right_wheel.spin_wheel_continuously(power)
-        time.sleep(left_turn_90_deg_delay)
+        while True:
+            with self.gyro_sensor.orientation_lock:
+                current_orientation = self.gyro_sensor.orientation
+            
+            if current_orientation <= -90:
+                break
+            with self.wheel_lock:
+                self.left_wheel.spin_wheel_continuously(-power)
+                self.right_wheel.spin_wheel_continuously(power)
         self.stop_moving()
+        self.gyro_sensor.reset_orientation()
 
-    def readjust_alignment(self, direction: str):
+    def readjust_alignment(self):
         # this would take info from the US sensor to check the distance from
         #the right wall and readjust if the distance is too large or small
+        print("Readjusting")
         self.stop_moving()
-        while direction != "ok":
-            readjustment_power = 15
-            delay_time = 0.5
+        while True:
+            with self.gyro_sensor.orientation_lock:
+                current = self.gyro_sensor.orientation
+            
+            if abs(current) <= 1:
+                print("Alignment OK")
+                self.stop_moving()
+                break
 
-            if direction == "left":
-                print("Readjusting left")
+            if current>0:
                 with self.wheel_lock:
-                    self.right_wheel.spin_wheel_continuously(readjustment_power)
-                    time.sleep(delay_time)
-                self.stop_moving()
-                time.sleep(delay_time)
-                # Counter-correction to straighten
+                    self.left_wheel.spin_wheel_continuously(-Robot.READJUST_POWER)
+                    self.right_wheel.spin_wheel_continuously(Robot.READJUST_POWER)
+            else:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(readjustment_power+5)
-                    time.sleep(delay_time)
-                self.stop_moving()
-
-            elif direction == "right":
-                print("Readjusting right")
-                # Turn slightly right
-                with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(readjustment_power)
-                    time.sleep(delay_time)
-                self.stop_moving()
-                time.sleep(delay_time)
-                # Counter-correction to straighten
-                with self.wheel_lock:
-                    self.right_wheel.spin_wheel_continuously(readjustment_power)
-                    time.sleep(delay_time)
-                self.stop_moving()
-
-            with self.us_sensor.lock:
-                direction = self.us_sensor.latest_readjust_direction
+                    self.left_wheel.spin_wheel_continuously(Robot.READJUST_POWER)
+                    self.right_wheel.spin_wheel_continuously(-Robot.READJUST_POWER)
+            time.sleep(Robot.CHECK_READJUST_TIME_INTERVAL)
+        if self.gyro_sensor.readjust_robot_flag.is_set():
+            self.gyro_sensor.readjust_robot_flag.clear()
         print("Readjustment complete")
 
     def move_in_hallway(self, power:int=FORWARD_MOVEMENT_POWER):
@@ -131,12 +131,9 @@ class Robot:
             if self.emergency_flag.is_set():
                 return
             
-            #readjust if need be
-            with self.us_sensor.lock:
-                readjust_direction = self.us_sensor.latest_readjust_direction
-
-            if readjust_direction != "ok":
-                self.readjust_alignment(readjust_direction)
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                with self.gyro_sensor.orientation_lock:
+                    self.readjust_alignment()
             else:
                 with self.wheel_lock:
                     self.left_wheel.spin_wheel_continuously(power)
@@ -155,7 +152,10 @@ class Robot:
                 turn_detected = RIGHT_TURNS[self.right_turns_passed]
 
                 if turn_detected == "home_valid" and self.go_home:
+                    self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.turn_right_90()
+                    self.gyro_sensor.reset_orientation()
+                    self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.right_turns_passed += 1
                     self.color_sensing_system.detect_hallway_on_right_flag.clear()
                     self.head_home_after_turn()
@@ -165,13 +165,20 @@ class Robot:
                     self.right_turns_passed += 1
 
                 elif turn_detected == "turn":
+                    self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.turn_right_90()
+                    self.gyro_sensor.reset_orientation()
+                    self.gyro_sensor.check_if_moving_straight_on_path = True
+                    self.gyro_sensor.reset_orientation()
                     self.right_turns_passed += 1
                     
                 elif turn_detected == "room" and not self.go_home:
+                    self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.turn_right_90()
                     self.right_turns_passed += 1
                     self.detected_room_action()
+                    self.gyro_sensor.reset_orientation()
+                    self.gyro_sensor.check_if_moving_straight_on_path = True
                 
                 if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
                     self.color_sensing_system.detect_hallway_on_right_flag.clear()
@@ -198,11 +205,11 @@ class Robot:
     def handle_non_meeting_room(self):
         position_of_green_sticker = self.sweep_room_for_green_sticker()
         if position_of_green_sticker != float("inf"):
-            self.rotate_for_delivery(position_of_green_sticker)
+            self.rotate_for_delivery(90-position_of_green_sticker)
             if self.color_sensing_system.is_in_front or self.color_sensing_system.motor.get_position==self.color_sensing_system.FRONT_POSITION:
                 self.color_sensing_system.move_sensor_to_right_side()
             self.drop_off_package()
-            self.rotate_for_delivery(-position_of_green_sticker)
+            self.rotate_for_delivery(0) # 90 deg for the arm represents 0 for the robot
         self.return_in_hallway_after_delivery()
 
     def sweep_room_for_green_sticker(self)->int:
@@ -220,20 +227,32 @@ class Robot:
         print("could not find the green sticker")
         return float("inf")
     
-    def rotate_for_delivery(self, angle: int):
-        power = Robot.POWER_TIME_FOR_90_DEG[0]
-        time_for_90 = Robot.POWER_TIME_FOR_90_DEG[1]
-        seconds_needed = abs(angle) * (time_for_90 / 90.0)
-        with self.wheel_lock:
-            if angle>0:
-                self.left_wheel.spin_wheel_continuously(power)
-                self.right_wheel.spin_wheel_continuously(-power)
-            else:
-                self.left_wheel.spin_wheel_continuously(-power)
-                self.right_wheel.spin_wheel_continuously(power)
-        time.sleep(seconds_needed)
-        self.stop_moving()
+    def rotate_for_delivery(self, target_angle_of_gyro: int):
+        print("Rotating the robot for delivery")
 
+        if target_angle_of_gyro > 0: #right
+            left_power = Robot.POWER_FOR_TURN
+            right_power = -Robot.POWER_FOR_TURN
+            done = lambda cur: cur>=target_angle_of_gyro
+            
+        else: #left
+            left_power = -Robot.POWER_FOR_TURN
+            right_power = Robot.POWER_FOR_TURN
+            done = lambda cur: cur<=target_angle_of_gyro
+        
+        while True:
+            with self.gyro_sensor.orientation_lock:
+                current = self.gyro_sensor.orientation
+            
+            if done(current):
+                break
+                
+            with self.wheel_lock:
+                self.left_wheel.spin_wheel_continuously(left_power)
+                self.right_wheel.spin_wheel_continuously(right_power)
+            
+        self.stop_moving()
+        
     def return_in_hallway_after_delivery(self):
         self.color_sensing_system.move_sensor_to_right_side()
         with self.wheel_lock:
@@ -249,16 +268,21 @@ class Robot:
         self.turn_left_90()
         self.color_sensing_system.move_sensor_to_right_side()
     
-            
     def head_home_after_turn(self):
         # might need to add some code to be able to readjust if needed since the 
         # distance is very large
         if not self.color_sensing_system.is_in_front:
             self.color_sensing_system.move_sensor_to_front()
-        self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
-        self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
-        
+
         while not self.color_sensing_system.detect_entered_home_flag.is_set():
+
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                with self.gyro_sensor.orientation_lock:
+                    self.readjust_alignment()
+            else:
+                with self.wheel_lock:
+                    self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
+                    self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
             time.sleep(0.05)
         # exits the loop as soon as the flag is set
         # let the robot move a little more forward into the room before stopping it
@@ -286,7 +310,6 @@ class Robot:
         with self.wheel_lock:
             self.stop_moving()
         self.color_sensing_system.stop_detecting_color()
-        self.us_sensor.stop_monitoring_distance()
         print("EMERGENCY STOP ACTIVATED")
         reset_brick()
         os._exit(1)
