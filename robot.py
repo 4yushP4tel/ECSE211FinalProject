@@ -188,14 +188,14 @@ class Robot:
         self.color_sensing_system.move_sensor_to_front()
         time.sleep(0.5)
         if self.color_sensing_system.detect_valid_entrance_flag.is_set():
-            self.handle_valid_room()
+            self.handle_non_meeting_room()
             self.color_sensing_system.detect_valid_entrance_flag.clear()
         elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
-            self.handle_invalid_room()
+            self.handle_meeting_room()
             self.color_sensing_system.detect_invalid_entrance_flag.clear()
         self.color_sensing_system.move_sensor_to_right_side()
     
-    def handle_valid_room(self):
+    def handle_non_meeting_room(self):
         position_of_green_sticker = self.sweep_room_for_green_sticker()
         if position_of_green_sticker != float("inf"):
             self.rotate_for_delivery(position_of_green_sticker)
@@ -205,6 +205,21 @@ class Robot:
             self.rotate_for_delivery(-position_of_green_sticker)
         self.return_in_hallway_after_delivery()
 
+    def sweep_room_for_green_sticker(self)->int:
+            #returns the angle at which the color sensor detects the green sticker
+        for _ in range(5):
+            if self.color_sensing_system.detect_room_end.is_set():
+                return float("inf")
+            if self.color_sensing_system.detect_valid_sticker_flag.is_set():
+                self.color_sensing_system.motor.set_power(0)
+                print("detected the green sticker")
+                self.color_sensing_system.detect_valid_sticker_flag.clear()
+                return self.color_sensing_system.motor.get_position()
+            self.color_sensing_system.move_sensor_side_to_side()
+            self.move_slightly_forward_for_sweep()
+        print("could not find the green sticker")
+        return float("inf")
+    
     def rotate_for_delivery(self, angle: int):
         power = Robot.POWER_TIME_FOR_90_DEG[0]
         time_for_90 = Robot.POWER_TIME_FOR_90_DEG[1]
@@ -230,26 +245,14 @@ class Robot:
         self.turn_left_90()
         self.color_sensing_system.detect_room_exit_flag.clear()
 
-    def handle_invalid_room(self):
+    def handle_meeting_room(self):
         self.turn_left_90()
         self.color_sensing_system.move_sensor_to_right_side()
     
-    def sweep_room_for_green_sticker(self)->int:
-            #returns the angle at which the color sensor detects the green sticker
-        for _ in range(5):
-            if self.color_sensing_system.detect_room_end.is_set():
-                return float("inf")
-            if self.color_sensing_system.detect_valid_sticker_flag.is_set():
-                self.color_sensing_system.motor.set_power(0)
-                print("detected the green sticker")
-                self.color_sensing_system.detect_valid_sticker_flag.clear()
-                return self.color_sensing_system.motor.get_position()
-            self.color_sensing_system.move_sensor_side_to_side()
-            self.move_slightly_forward_for_sweep()
-        print("could not find the green sticker")
-        return float("inf")
             
     def head_home_after_turn(self):
+        # might need to add some code to be able to readjust if needed since the 
+        # distance is very large
         if not self.color_sensing_system.is_in_front:
             self.color_sensing_system.move_sensor_to_front()
         self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)

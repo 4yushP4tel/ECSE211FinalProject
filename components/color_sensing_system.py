@@ -110,14 +110,12 @@ class   ColorSensingSystem:
                     self.detect_hallway_on_right_flag.set()
                 elif color == "red":
                     self.detect_invalid_entrance_flag.set()
-                elif color == "orange":
+                elif self.prev_color == "orange" and color == "yellow":
                     self.detect_valid_entrance_flag.set()
                 elif self.prev_color=="yellow" and color=="orange":
                     self.detect_room_exit_flag.set()
-                elif color == "green":
+                elif self.prev_color=="green" and color == "green":
                     self.detect_valid_sticker_flag.set()
-                elif color == "yellow":
-                    self.detect_room.set()
                 elif self.prev_color == "yellow" and (color in ["white","grey"]):
                     self.detect_room_end.set()
                 elif self.prev_color=="orange" and color=="blue":
