@@ -10,6 +10,7 @@ from utils.brick import reset_brick, wait_ready_sensors, Motor
 
 
 class Robot:
+    REALIGNMENT_CORRECTION = 15
     DEFAULT_WHEEL_SPEED = 90
     LEFT_WHEEL_CORRECTION = 0
     RIGHT_WHEEL_CORRECTION = 0
@@ -238,11 +239,11 @@ class Robot:
     # Readjust alignment to move straight if necessary
     def readjust_alignment_if_necessary(self):
         if self.gyro_sensor.readjust_right_event.is_set():
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION + 50)
+            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
             self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
         elif self.gyro_sensor.readjust_left_event.is_set():
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION + 50)
+            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
         else:
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
             self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
