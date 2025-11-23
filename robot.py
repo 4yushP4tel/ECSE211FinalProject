@@ -202,7 +202,7 @@ class Robot:
 
     # Turn x degrees (+ right, - left)
     def turn_x_degrees(self, angle):
-        print(f"Turn {angle} degrees")
+        print(f"Turn {angle} degrees (+ right, - left)")
         if angle > 0:
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
             self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)

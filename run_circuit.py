@@ -21,8 +21,7 @@ def main():
         # robot.validate_entrance()
         # robot.process_office()
         # robot.exit_office()
-        # robot.turn_right_90()
-        # robot.turn_left_90()
+        # robot.turn_x_degrees(angle)
         # robot.stop_robot()
 
         # Full system integration function:
