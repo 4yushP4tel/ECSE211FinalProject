@@ -1,7 +1,7 @@
 import os
 import time
 
-from components.us_sensor import UltrasonicSensor
+from components.gyro_sensor import GyroSensor
 from components.color_sensing_system import ColorSensingSystem
 from components.speaker import Speaker
 from components.drop_off_system import DropOffSystem
@@ -23,13 +23,13 @@ class Robot:
         self.left_wheel = Motor('C')
         self.drop_off_system = DropOffSystem('A')
         self.speaker = Speaker()
-        self.us_sensor = UltrasonicSensor(1)
-        self.color_sensing_system = ColorSensingSystem(2, 'D')
-        self.emergency_touch_sensor = EmergencyStopSystem(3)
+        self.gyro_sensor = GyroSensor(4)
+        self.color_sensing_system = ColorSensingSystem(3, 'D')
+        self.emergency_touch_sensor = EmergencyStopSystem(1)
         wait_ready_sensors()
 
         # 3 threads
-        self.us_sensor.start_monitoring_distance()
+        self.gyro_sensor.start_monitoring_orientation()
         self.color_sensing_system.start_detecting_color()
         self.emergency_touch_sensor.start_detecting_emergency()
 
@@ -38,63 +38,63 @@ class Robot:
         # Visit first office and process it if necessary
         self.move_straight_until_office()
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_right_90()
+            self.turn_x_degrees(88)
             self.process_office()
             self.exit_office()
-            self.turn_left_90()
+            self.turn_x_degrees(-88)
 
         # Skip first (invalid) mail
         self.move_straight_until_black_line()
 
         # Turn on first corner
         self.move_straight_until_black_line()
-        self.turn_right_90()
+        self.turn_x_degrees(88)
 
         # Visit second office and process it if necessary
         self.move_straight_until_office()
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_right_90()
+            self.turn_x_degrees(88)
             self.process_office()
             self.exit_office()
-            self.turn_left_90()
+            self.turn_x_degrees(-88)
 
         # Visit second (valid) mail and return home if possible
         self.move_straight_until_black_line()
         if self.packages_delivered == 2:
-            self.turn_right_90()
+            self.turn_x_degrees(88)
             self.move_straight_until_mail()
             self.stop_robot()
 
         # Visit third office and process it if necessary
         self.move_straight_until_office()
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_right_90()
+            self.turn_x_degrees(88)
             self.process_office()
             self.exit_office()
-            self.turn_left_90()
+            self.turn_x_degrees(-88)
 
         # Turn on second corner
         self.move_straight_until_black_line()
-        self.turn_right_90()
+        self.turn_x_degrees(88)
 
         # Skip third (invalid) mail
         self.move_straight_until_black_line()
 
         # Turn on third corner
         self.move_straight_until_black_line()
-        self.turn_right_90()
+        self.turn_x_degrees(88)
 
         # Visit fourth office and process it if necessary
         self.move_straight_until_office()
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_right_90()
+            self.turn_x_degrees(88)
             self.process_office()
             self.exit_office()
-            self.turn_left_90()
+            self.turn_x_degrees(-88)
 
         # Visit fourth (valid) mail and return home whether failed or not
         self.move_straight_until_black_line()
-        self.turn_right_90()
+        self.turn_x_degrees(88)
         self.move_straight_until_mail()
         self.stop_robot()
 
@@ -106,6 +106,7 @@ class Robot:
         self.move_straight(1)
         while not self.color_sensing_system.detect_black_event.is_set():
             self.check_stop_emergency_event()
+            self.readjust_alignment_if_necessary()
 
         self.color_sensing_system.detect_black_event.clear()
         self.stop_moving()
@@ -116,6 +117,7 @@ class Robot:
         self.move_straight(1)
         while not self.color_sensing_system.detect_orange_event.is_set():
             self.check_stop_emergency_event()
+            self.readjust_alignment_if_necessary()
 
         self.color_sensing_system.detect_orange_event.clear()
         self.stop_moving()
@@ -126,6 +128,7 @@ class Robot:
         self.move_straight(1)
         while not self.color_sensing_system.detect_blue_event.is_set():
             self.check_stop_emergency_event()
+            self.readjust_alignment_if_necessary()
 
         self.color_sensing_system.detect_blue_event.clear()
         self.stop_moving()
@@ -171,7 +174,7 @@ class Robot:
 
                 if self.color_sensing_system.detect_green_event.is_set():
                     self.color_sensing_system.detect_green_event.clear()
-                    angle = self.color_sensing_system.sweeper.get_position() - 90
+                    angle = -(self.color_sensing_system.sweeper.get_position() - 90)
                     self.packages_dropped = True
             self.color_sensing_system.sweeper.wait_is_stopped()
 
@@ -182,28 +185,9 @@ class Robot:
             # Drop package on green sticker if detected
             # We could probably use the gyro sensor to have the exact alignment with the green sticker
             if self.packages_dropped:
-                if angle < 0:
-                    self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-                    self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-                    time.sleep(0.01 * abs(angle))
-
-                    self.stop_moving()
-                    self.drop_off_package()
-
-                    self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-                    self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-                    time.sleep(0.01 * abs(angle))
-                else:
-                    self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-                    self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-                    time.sleep(0.01 * abs(angle))
-
-                    self.stop_moving()
-                    self.drop_off_package()
-
-                    self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-                    self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-                    time.sleep(0.01 * abs(angle))
+                self.turn_x_degrees(angle)
+                self.drop_off_package()
+                self.turn_x_degrees(-angle)
 
     # Move backwards until color orange is detected
     def exit_office(self):
@@ -215,28 +199,30 @@ class Robot:
         self.color_sensing_system.detect_orange_event.clear()
         self.stop_moving()
 
-    # Turn 90 degrees to the right
-    def turn_right_90(self):
-        print("Turn 90 degrees to the right")
-        self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-        self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-        time.sleep(3)
-        self.stop_moving()
+    # Turn x degrees (+ right, - left)
+    def turn_x_degrees(self, angle):
+        print(f"Turn {angle} degrees")
+        if angle > 0:
+            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+        elif angle < 0:
+            self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+        else:
+            return
 
-    # Turn 90 degrees to the left
-    def turn_left_90(self):
-        print("Turn 90 degrees to the left")
-        self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-        self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-        time.sleep(3)
+        while self.gyro_sensor.gyro_sensor.get_abs_measure() < angle:
+            pass
+
         self.stop_moving()
+        self.gyro_sensor.gyro_sensor.reset_measure()
 
     # Shut down and exit program
     def stop_robot(self):
         print("Shut down and exit program")
         self.stop_moving()
         self.color_sensing_system.stop_detecting_color()
-        self.us_sensor.stop_monitoring_distance()
+        self.gyro_sensor.stop_monitoring_orientation()
         self.emergency_touch_sensor.stop_detecting_emergency()
         reset_brick()
         os._exit(1)
@@ -248,6 +234,18 @@ class Robot:
         print("Move straight")
         self.left_wheel.set_dps(direction * Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
         self.right_wheel.set_dps(direction * Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+
+    # Readjust alignment to move straight if necessary
+    def readjust_alignment_if_necessary(self):
+        if self.gyro_sensor.readjust_right_event.is_set():
+            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION + 50)
+            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+        elif self.gyro_sensor.readjust_left_event.is_set():
+            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION + 50)
+        else:
+            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
 
     # Stop all movement of wheels
     def stop_moving(self):
