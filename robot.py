@@ -23,11 +23,11 @@ RIGHT_TURNS = [ "room",
                 "turn" ]
 
 class Robot:
-    FORWARD_MOVEMENT_POWER=15
-    POWER_FOR_TURN=20
+    FORWARD_MOVEMENT_POWER=12
+    POWER_FOR_TURN=15
     EXIT_ROOM_POWER=10
     READJUST_POWER=15
-    CHECK_READJUST_TIME_INTERVAL = 0.5
+    CHECK_READJUST_TIME_INTERVAL = 0.1
     def __init__(self):
         self.right_turns_passed = 0
         self.packages_delivered = 0
@@ -76,8 +76,8 @@ class Robot:
         while True:
             with self.gyro_sensor.orientation_lock:
                 current_orientation = self.gyro_sensor.orientation
-            
-            if current_orientation >= 90:
+            #print(f"Current orientation: {current_orientation}")
+            if current_orientation > 88:
                 break
             with self.wheel_lock:
                 self.left_wheel.spin_wheel_continuously(power)
@@ -91,7 +91,7 @@ class Robot:
             with self.gyro_sensor.orientation_lock:
                 current_orientation = self.gyro_sensor.orientation
             
-            if current_orientation <= -90:
+            if current_orientation < -88:
                 break
             with self.wheel_lock:
                 self.left_wheel.spin_wheel_continuously(-power)
@@ -131,17 +131,18 @@ class Robot:
             if self.emergency_flag.is_set():
                 return
             
-            if self.gyro_sensor.readjust_robot_flag.is_set():
-                with self.gyro_sensor.orientation_lock:
-                    self.readjust_alignment()
+            #if self.gyro_sensor.readjust_robot_flag.is_set():
+            #    with self.gyro_sensor.orientation_lock:
+            #        self.readjust_alignment()
             else:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(power)
+                    self.left_wheel.spin_wheel_continuously(1.25*power)
                     self.right_wheel.spin_wheel_continuously(power)
 
             # Turn right on valid intersections and then start moving again
             if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
                 print("Detected path on right")
+                time.sleep(0.3)
                 self.stop_moving()
 
                 if self.right_turns_passed >= len(RIGHT_TURNS):
@@ -195,9 +196,11 @@ class Robot:
         self.color_sensing_system.move_sensor_to_front()
         time.sleep(0.5)
         if self.color_sensing_system.detect_valid_entrance_flag.is_set():
+            print("detected valid entrance")
             self.handle_non_meeting_room()
             self.color_sensing_system.detect_valid_entrance_flag.clear()
         elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
+            print("detected invalid entrance")
             self.handle_meeting_room()
             self.color_sensing_system.detect_invalid_entrance_flag.clear()
         self.color_sensing_system.move_sensor_to_right_side()
@@ -214,7 +217,8 @@ class Robot:
 
     def sweep_room_for_green_sticker(self)->int:
             #returns the angle at which the color sensor detects the green sticker
-        for _ in range(5):
+        for _ in range(10):
+            self.stop_moving()
             if self.color_sensing_system.detect_room_end.is_set():
                 return float("inf")
             if self.color_sensing_system.detect_valid_sticker_flag.is_set():
@@ -224,6 +228,7 @@ class Robot:
                 return self.color_sensing_system.motor.get_position()
             self.color_sensing_system.move_sensor_side_to_side()
             self.move_slightly_forward_for_sweep()
+            time.sleep(0.5)
         print("could not find the green sticker")
         return float("inf")
     
@@ -260,8 +265,11 @@ class Robot:
             self.right_wheel.spin_wheel_continuously(-Robot.EXIT_ROOM_POWER)
         while not self.color_sensing_system.detect_room_exit_flag.is_set():
             time.sleep(0.05)
+        time.sleep(2)
         self.stop_moving()
-        self.turn_left_90()
+        self.turn_right_90()
+        self.turn_right_90()
+        self.turn_right_90()
         self.color_sensing_system.detect_room_exit_flag.clear()
 
     def handle_meeting_room(self):
@@ -281,7 +289,7 @@ class Robot:
                     self.readjust_alignment()
             else:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
+                    self.left_wheel.spin_wheel_continuously(1.2*Robot.FORWARD_MOVEMENT_POWER)
                     self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
             time.sleep(0.05)
         # exits the loop as soon as the flag is set

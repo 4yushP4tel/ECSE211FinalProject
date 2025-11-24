@@ -35,17 +35,35 @@ class GyroSensor:
         while not self.stop_orientation_monitoring_flag.is_set():
             with self.orientation_lock:
                 self.orientation = self.get_orientation()
-            if ((self.orientation > GyroSensor.THRESHOLD_FOR_READJUST
+            if self.orientation is None:
+                time.sleep(0.01)
+            if (self.orientation is not None and (self.orientation > GyroSensor.THRESHOLD_FOR_READJUST
             or self.orientation < -GyroSensor.THRESHOLD_FOR_READJUST)
             and self.check_if_moving_straight_on_path
             ):
+                print(f"readjustment needed, the orientation is: {self.orientation}")
                 self.readjust_robot_flag.set()
-            time.sleep(0.5)
+            time.sleep(0.01)
 
     def reset_orientation(self):
-        #this should be done when the robot is turning into some room some 
+        #this should be done when the robot is turning into some room some
+        print("Readjusting the gyro orientation to 0")
+        
+        self.stop_orientation_monitoring_flag.set()
+        if self.monitor_orientation_thread and self.monitor_orientation_thread.is_alive():
+            self.monitor_orientation_thread.join()
+        
+        self.sensor.set_mode(EV3GyroSensor.Mode.DPS)
+        time.sleep(0.01)
+        self.sensor.set_mode(EV3GyroSensor.Mode.ABS)
+        time.sleep(0.01)
+
+        self.stop_orientation_monitoring_flag.clear()
+        self.start_monitoring_orientation()
+
         with self.orientation_lock:
-            self.sensor.reset_measure()
             self.orientation=0
+
+        print("Gyro reset complete")
 
 
