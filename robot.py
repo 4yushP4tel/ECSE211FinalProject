@@ -67,7 +67,7 @@ class Robot:
         while not self.emergency_flag.is_set():
             if self.emergency_touch_sensor.is_pressed():
                 print("EMERGENCY BUTTON PRESSED!")
-                self.emergency_flag.set()
+                self.emergency_flag.clear()
                 self.emergency_stop()
                 break
             time.sleep(0.05)
@@ -142,13 +142,13 @@ class Robot:
 
             # Turn right on valid intersections and then start moving again
             if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
+                self.color_sensing_system.detect_hallway_on_right_flag.clear()
                 print("Detected path on right")
                 time.sleep(0.5)
                 self.stop_moving()
 
                 if self.right_turns_passed >= len(RIGHT_TURNS):
                     print("No more RIGHT_TURNS entries — ignoring right path")
-                    self.color_sensing_system.detect_hallway_on_right_flag.clear()
                     continue
 
                 turn_detected = RIGHT_TURNS[self.right_turns_passed]
@@ -159,7 +159,6 @@ class Robot:
                     self.gyro_sensor.reset_orientation()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.right_turns_passed += 1
-                    self.color_sensing_system.detect_hallway_on_right_flag.clear()
                     self.head_home_after_turn()
                     break
 
@@ -181,9 +180,6 @@ class Robot:
                     self.detected_room_action()
                     self.gyro_sensor.reset_orientation()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
-                
-                if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
-                    self.color_sensing_system.detect_hallway_on_right_flag.clear()
                 
     def stop_moving(self):
         with self.wheel_lock:
@@ -207,14 +203,14 @@ class Robot:
         self.stop_moving()
 
         if self.color_sensing_system.detect_valid_entrance_flag.is_set():
+            self.color_sensing_system.detect_valid_entrance_flag.clear()
             print("detected valid entrance")
             self.handle_non_meeting_room()
-            self.color_sensing_system.detect_valid_entrance_flag.clear()
         elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
+            self.color_sensing_system.detect_invalid_entrance_flag.clear()
             print("detected invalid entrance")
             self.stop_moving()
             self.handle_meeting_room()
-            self.color_sensing_system.detect_invalid_entrance_flag.clear()
         self.color_sensing_system.move_sensor_to_right_side()
     
     def handle_non_meeting_room(self):
@@ -233,9 +229,9 @@ class Robot:
             if self.color_sensing_system.detect_room_end.is_set():
                 return float("inf")
             if self.color_sensing_system.detect_valid_sticker_flag.is_set():
+                self.color_sensing_system.detect_valid_sticker_flag.clear()
                 self.color_sensing_system.motor.set_power(0)
                 print("detected the green sticker")
-                self.color_sensing_system.detect_valid_sticker_flag.clear()
                 return self.color_sensing_system.motor.get_position()
             self.color_sensing_system.move_sensor_side_to_side()
             time.sleep(0.5)
