@@ -143,7 +143,7 @@ class Robot:
             # Turn right on valid intersections and then start moving again
             if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
                 print("Detected path on right")
-                time.sleep(0.3)
+                time.sleep(0.5)
                 self.stop_moving()
 
                 if self.right_turns_passed >= len(RIGHT_TURNS):
@@ -212,6 +212,7 @@ class Robot:
             self.color_sensing_system.detect_valid_entrance_flag.clear()
         elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
             print("detected invalid entrance")
+            self.stop_moving()
             self.handle_meeting_room()
             self.color_sensing_system.detect_invalid_entrance_flag.clear()
         self.color_sensing_system.move_sensor_to_right_side()
