@@ -3,7 +3,7 @@ from utils.brick import EV3GyroSensor, wait_ready_sensors
 import threading
 
 class GyroSensor:
-    THRESHOLD_FOR_READJUST = 8
+    THRESHOLD_FOR_READJUST = 5
     def __init__(self, port):
         self.sensor = EV3GyroSensor(port)
         self.orientation = 0
@@ -11,7 +11,7 @@ class GyroSensor:
         self.monitor_orientation_thread = None
         self.stop_orientation_monitoring_flag = threading.Event()
         self.readjust_robot_flag = threading.Event()
-        self.check_if_moving_straight_on_path = False
+        self.check_if_moving_straight_on_path = True
         self.reset_orientation()
     
     def start_monitoring_orientation(self):
@@ -37,6 +37,7 @@ class GyroSensor:
                 self.orientation = self.get_orientation()
             if self.orientation is None:
                 time.sleep(0.01)
+                continue
             if (self.orientation is not None and (self.orientation > GyroSensor.THRESHOLD_FOR_READJUST
             or self.orientation < -GyroSensor.THRESHOLD_FOR_READJUST)
             and self.check_if_moving_straight_on_path

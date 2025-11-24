@@ -195,6 +195,16 @@ class Robot:
         """
         self.color_sensing_system.move_sensor_to_front()
         time.sleep(0.5)
+        while not self.color_sensing_system.detect_invalid_entrance_flag.is_set() and \
+            not self.color_sensing_system.detect_valid_entrance_flag.is_set():
+            if self.emergency_flag.is_set():
+                return
+            with self.wheel_lock:
+                self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+                self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+            time.sleep(0.05)
+        self.stop_moving()
+
         if self.color_sensing_system.detect_valid_entrance_flag.is_set():
             print("detected valid entrance")
             self.handle_non_meeting_room()
@@ -218,7 +228,6 @@ class Robot:
     def sweep_room_for_green_sticker(self)->int:
             #returns the angle at which the color sensor detects the green sticker
         for _ in range(10):
-            self.stop_moving()
             if self.color_sensing_system.detect_room_end.is_set():
                 return float("inf")
             if self.color_sensing_system.detect_valid_sticker_flag.is_set():
@@ -227,8 +236,8 @@ class Robot:
                 self.color_sensing_system.detect_valid_sticker_flag.clear()
                 return self.color_sensing_system.motor.get_position()
             self.color_sensing_system.move_sensor_side_to_side()
-            self.move_slightly_forward_for_sweep()
             time.sleep(0.5)
+            self.move_slightly_forward_for_sweep()
         print("could not find the green sticker")
         return float("inf")
     
@@ -310,9 +319,12 @@ class Robot:
         if self.packages_delivered == 2:
             self.go_home = True
 
-    def move_slightly_forward_for_sweep(self, wheel_rotation=100):
-        self.left_wheel.rotate_wheel_degrees(wheel_rotation)
-        self.right_wheel.rotate_wheel_degrees(wheel_rotation)
+    def move_slightly_forward_for_sweep(self):
+        with self.wheel_lock:
+            self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.rotate_wheel_degrees(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+        time.sleep(1)
+        self.stop_moving()
         
     def emergency_stop(self):
         with self.wheel_lock:
