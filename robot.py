@@ -36,13 +36,10 @@ class Robot:
 
     # Main robot logic for the delivery
     def start_delivery(self):
-        # Visit first office and process it if necessary
+        # Validate first office and process it if necessary
         self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_x_degrees(88)
             self.process_office()
-            self.exit_office()
-            self.turn_x_degrees(-88)
 
         # Skip first (invalid) mail
         self.move_straight_until_color("black")
@@ -51,28 +48,20 @@ class Robot:
         self.move_straight_until_color("black")
         self.turn_x_degrees(88)
 
-        # Visit second office and process it if necessary
+        # Validate second office and process it if necessary
         self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_x_degrees(88)
             self.process_office()
-            self.exit_office()
-            self.turn_x_degrees(-88)
 
         # Visit second (valid) mail and return home if possible
         self.move_straight_until_color("black")
         if self.packages_delivered == 2:
-            self.turn_x_degrees(88)
-            self.move_straight_until_color("blue")
-            self.stop_robot()
+            self.return_home()
 
-        # Visit third office and process it if necessary
+        # Validate third office and process it if necessary
         self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_x_degrees(88)
             self.process_office()
-            self.exit_office()
-            self.turn_x_degrees(-88)
 
         # Turn on second corner
         self.move_straight_until_color("black")
@@ -85,19 +74,14 @@ class Robot:
         self.move_straight_until_color("black")
         self.turn_x_degrees(88)
 
-        # Visit fourth office and process it if necessary
+        # Validate fourth office and process it if necessary
         self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
-            self.turn_x_degrees(88)
             self.process_office()
-            self.exit_office()
-            self.turn_x_degrees(-88)
 
         # Visit fourth (valid) mail and return home whether failed or not
         self.move_straight_until_color("black")
-        self.turn_x_degrees(88)
-        self.move_straight_until_color("blue")
-        self.stop_robot()
+        self.return_home()
 
     # Main functions for robot logic
     
@@ -138,8 +122,40 @@ class Robot:
         self.stop_moving()
         return True
 
-    # Sweep office and drop package on green sticker
+    # Robot behaviour to process office and return back to initial path
     def process_office(self):
+        self.turn_x_degrees(88)
+        self.visit_office()
+        self.exit_office()
+        self.turn_x_degrees(-88)
+
+    def return_home(self):
+        self.turn_x_degrees(88)
+        self.move_straight_until_color("blue")
+        self.stop_robot()
+
+    # Turn x degrees (+ right, - left)
+    def turn_x_degrees(self, angle):
+        print(f"Turn {angle} degrees (+ right, - left)")
+        if angle > 0:
+            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+        elif angle < 0:
+            self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+        else:
+            return
+
+        while self.gyro_sensor.gyro_sensor.get_abs_measure() < angle:
+            pass
+
+        self.stop_moving()
+        self.gyro_sensor.gyro_sensor.reset_measure()
+
+    # Additional helper functions
+
+    # Sweep office and drop package on green sticker
+    def visit_office(self):
         print("Sweep office and drop package on green sticker")
 
         # 5 sweeps of the office
@@ -171,7 +187,6 @@ class Robot:
             self.color_sensing_system.sweeper.wait_is_stopped()
 
             # Drop package on green sticker if detected
-            # We could probably use the gyro sensor to have the exact alignment with the green sticker
             if self.packages_dropped:
                 self.turn_x_degrees(angle)
                 self.drop_off_package()
@@ -187,24 +202,6 @@ class Robot:
         self.color_sensing_system.detect_orange_event.clear()
         self.stop_moving()
 
-    # Turn x degrees (+ right, - left)
-    def turn_x_degrees(self, angle):
-        print(f"Turn {angle} degrees (+ right, - left)")
-        if angle > 0:
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-        elif angle < 0:
-            self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-        else:
-            return
-
-        while self.gyro_sensor.gyro_sensor.get_abs_measure() < angle:
-            pass
-
-        self.stop_moving()
-        self.gyro_sensor.gyro_sensor.reset_measure()
-
     # Shut down and exit program
     def stop_robot(self):
         print("Shut down and exit program")
@@ -214,8 +211,6 @@ class Robot:
         self.emergency_touch_sensor.stop_detecting_emergency()
         reset_brick()
         os._exit(1)
-
-    # Additional helper functions
 
     # Move straight
     def move_straight(self, direction):
@@ -242,6 +237,7 @@ class Robot:
         print("Stop all movement of wheels")
         self.left_wheel.set_dps(0)
         self.right_wheel.set_dps(0)
+        time.sleep(1)
 
     # Drop off package and play sound
     def drop_off_package(self):

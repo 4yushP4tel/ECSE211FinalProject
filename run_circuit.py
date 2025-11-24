@@ -9,13 +9,17 @@ def main():
         # List of functions to be tested
 
         # Helper functions:
-        # 1 for forward and -1 for backward
+        # robot.visit_office()
+        # robot.exit_office()
+        # robot.stop_robot()
         # robot.move_straight(1)
         # robot.move_straight(-1)
         # robot.drop_off_package()
         # while True:
         #   robot.readjust_alignment_if_necessary()
         #   check_stop_emergency_event()
+        # robot.stop_moving()
+        # robot.drop_off_package()
 
         # Main functions (subsystems):
         # robot.move_straight_until_color("black")
@@ -23,9 +27,8 @@ def main():
         # robot.move_straight_until_color("blue")
         # robot.validate_entrance()
         # robot.process_office()
-        # robot.exit_office()
+        # robot.return_home()
         # robot.turn_x_degrees(angle)
-        # robot.stop_robot()
 
         # Full system integration function:
         # robot.start_delivery()
