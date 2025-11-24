@@ -141,3 +141,4 @@ class   ColorSensingSystem:
         self.stop_sensing_flag.set()
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
             self.color_sensing_thread.join()
+

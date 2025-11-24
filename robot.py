@@ -23,7 +23,8 @@ RIGHT_TURNS = [ "room",
                 "turn" ]
 
 class Robot:
-    FORWARD_MOVEMENT_POWER=12
+    FORWARD_MOVEMENT_POWER_RIGHT=15
+    FORWARD_MOVEMENT_POWER_LEFT=FORWARD_MOVEMENT_POWER_RIGHT*1.25
     POWER_FOR_TURN=15
     EXIT_ROOM_POWER=10
     READJUST_POWER=15
@@ -76,7 +77,7 @@ class Robot:
         while True:
             with self.gyro_sensor.orientation_lock:
                 current_orientation = self.gyro_sensor.orientation
-            #print(f"Current orientation: {current_orientation}")
+            
             if current_orientation > 88:
                 break
             with self.wheel_lock:
@@ -126,7 +127,7 @@ class Robot:
             self.gyro_sensor.readjust_robot_flag.clear()
         print("Readjustment complete")
 
-    def move_in_hallway(self, power:int=FORWARD_MOVEMENT_POWER):
+    def move_in_hallway(self):
         while True:
             if self.emergency_flag.is_set():
                 return
@@ -136,8 +137,8 @@ class Robot:
             #        self.readjust_alignment()
             else:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(1.25*power)
-                    self.right_wheel.spin_wheel_continuously(power)
+                    self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+                    self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
 
             # Turn right on valid intersections and then start moving again
             if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
@@ -298,8 +299,8 @@ class Robot:
                     self.readjust_alignment()
             else:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(1.2*Robot.FORWARD_MOVEMENT_POWER)
-                    self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER)
+                    self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+                    self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             time.sleep(0.05)
         # exits the loop as soon as the flag is set
         # let the robot move a little more forward into the room before stopping it
