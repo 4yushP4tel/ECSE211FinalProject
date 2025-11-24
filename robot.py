@@ -37,7 +37,7 @@ class Robot:
     # Main robot logic for the delivery
     def start_delivery(self):
         # Visit first office and process it if necessary
-        self.move_straight_until_office()
+        self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
             self.turn_x_degrees(88)
             self.process_office()
@@ -45,14 +45,14 @@ class Robot:
             self.turn_x_degrees(-88)
 
         # Skip first (invalid) mail
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
 
         # Turn on first corner
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
         self.turn_x_degrees(88)
 
         # Visit second office and process it if necessary
-        self.move_straight_until_office()
+        self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
             self.turn_x_degrees(88)
             self.process_office()
@@ -60,14 +60,14 @@ class Robot:
             self.turn_x_degrees(-88)
 
         # Visit second (valid) mail and return home if possible
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
         if self.packages_delivered == 2:
             self.turn_x_degrees(88)
-            self.move_straight_until_mail()
+            self.move_straight_until_color("blue")
             self.stop_robot()
 
         # Visit third office and process it if necessary
-        self.move_straight_until_office()
+        self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
             self.turn_x_degrees(88)
             self.process_office()
@@ -75,18 +75,18 @@ class Robot:
             self.turn_x_degrees(-88)
 
         # Turn on second corner
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
         self.turn_x_degrees(88)
 
         # Skip third (invalid) mail
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
 
         # Turn on third corner
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
         self.turn_x_degrees(88)
 
         # Visit fourth office and process it if necessary
-        self.move_straight_until_office()
+        self.move_straight_until_color("orange")
         if self.packages_delivered < 2 and self.validate_entrance():
             self.turn_x_degrees(88)
             self.process_office()
@@ -94,44 +94,31 @@ class Robot:
             self.turn_x_degrees(-88)
 
         # Visit fourth (valid) mail and return home whether failed or not
-        self.move_straight_until_black_line()
+        self.move_straight_until_color("black")
         self.turn_x_degrees(88)
-        self.move_straight_until_mail()
+        self.move_straight_until_color("blue")
         self.stop_robot()
 
     # Main functions for robot logic
-
-    # Move straight until color black is detected
-    def move_straight_until_black_line(self):
-        print("Move straight until color black is detected")
+    
+    # Move straight until specified color is detected
+    def move_straight_until_color(self, color):
+        print(f"Move straight until color {color} is detected")
         self.move_straight(1)
-        while not self.color_sensing_system.detect_black_event.is_set():
+        while True:
+            if self.color_sensing_system.detect_black_event.is_set() and color == "black":
+                self.color_sensing_system.detect_black_event.clear()
+                break
+            elif self.color_sensing_system.detect_orange_event.is_set() and color == "orange":
+                self.color_sensing_system.detect_orange_event.clear()
+                break
+            elif self.color_sensing_system.detect_blue_event.is_set() and color == "blue":
+                self.color_sensing_system.detect_blue_event.clear()
+                break
+            
             self.check_stop_emergency_event()
             self.readjust_alignment_if_necessary()
 
-        self.color_sensing_system.detect_black_event.clear()
-        self.stop_moving()
-
-    # Move straight until color orange is detected
-    def move_straight_until_office(self):
-        print("Move straight until color orange is detected")
-        self.move_straight(1)
-        while not self.color_sensing_system.detect_orange_event.is_set():
-            self.check_stop_emergency_event()
-            self.readjust_alignment_if_necessary()
-
-        self.color_sensing_system.detect_orange_event.clear()
-        self.stop_moving()
-
-    # Move straight until color blue is detected
-    def move_straight_until_mail(self):
-        print("Move straight until color blue is detected")
-        self.move_straight(1)
-        while not self.color_sensing_system.detect_blue_event.is_set():
-            self.check_stop_emergency_event()
-            self.readjust_alignment_if_necessary()
-
-        self.color_sensing_system.detect_blue_event.clear()
         self.stop_moving()
 
     # Return False if color red detected at entrance and True otherwise
@@ -241,9 +228,11 @@ class Robot:
         if self.gyro_sensor.readjust_right_event.is_set():
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
             self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            self.gyro_sensor.readjust_right_event.clear()
         elif self.gyro_sensor.readjust_left_event.is_set():
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
             self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
+            self.gyro_sensor.readjust_left_event.clear()
         else:
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
             self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
