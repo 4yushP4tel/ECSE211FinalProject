@@ -212,8 +212,8 @@ class Robot:
     def handle_non_meeting_room(self)->int:
             #returns the angle at which the color sensor detects the green sticker
         self.color_sensing_system.move_sensor_to_right_side()
-        self.move_slightly_forward_for_sweep(sleep=2) # this is just to allow the robot to be lined up
-        for i in range(5):
+        self.move_slightly_forward_for_sweep(sleep=1) # this is just to allow the robot to be lined up
+        for i in range(7): # check this out if this actually works
             if self.emergency_flag.is_set():
                 self.emergency_stop()
             
@@ -251,7 +251,7 @@ class Robot:
             self.color_sensing_system.motor.set_limits(dps=90)
             self.color_sensing_system.motor.set_position(0)
             self.color_sensing_system.motor.wait_is_stopped()
-            time.sleep(2)
+            time.sleep(3)
 
             # Drop package on green sticker if detected
             if self.packages_dropped:
@@ -260,14 +260,15 @@ class Robot:
                 self.turn_x_deg(-(angle / 20))
                 # reset_brick()
                 break
-        
+        self.return_in_hallway_after_delivery()
+            
     def return_in_hallway_after_delivery(self):
         self.color_sensing_system.move_sensor_to_right_side()
         with self.wheel_lock:
-            self.left_wheel.spin_wheel_continuously(-Robot.EXIT_ROOM_POWER)
+            self.left_wheel.spin_wheel_continuously(-Robot.EXIT_ROOM_POWER*1.25)
             self.right_wheel.spin_wheel_continuously(-Robot.EXIT_ROOM_POWER)
         while not self.color_sensing_system.detect_room_exit_flag.is_set():
-            time.sleep(0.05)
+            time.sleep(0.01)
         time.sleep(2)
         self.stop_moving()
         self.turn_x_deg(270)
@@ -314,7 +315,7 @@ class Robot:
     def move_slightly_forward_for_sweep(self, sleep = 0.75):
         move_forward_speed = 12
         with self.wheel_lock:
-            self.left_wheel.spin_wheel_continuously(move_forward_speed)
+            self.left_wheel.spin_wheel_continuously(move_forward_speed*1.25)
             self.right_wheel.spin_wheel_continuously(move_forward_speed)
         time.sleep(sleep)
         self.stop_moving()
