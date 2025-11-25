@@ -115,18 +115,16 @@ class   ColorSensingSystem:
             with self.color_lock:
                 self.prev_color = self.most_recent_color
                 self.most_recent_color = color
-                if (self.prev_color in ["white","grey", "orange", "yellow", "blue", "green"]) and color == "black":
+                if self.prev_color == "black" and color == "black":
                     self.detect_hallway_on_right_flag.set()
-                elif color == "red":
+                elif color == "red" and self.prev_color=="red":
                     self.detect_invalid_entrance_flag.set()
-                elif self.prev_color == "orange" and color == "yellow":
+                elif self.prev_color == "orange" and color == "orange":
                     self.detect_valid_entrance_flag.set()
                 elif self.prev_color=="yellow" and color=="orange":
                     self.detect_room_exit_flag.set()
                 elif self.prev_color=="green" and color == "green":
                     self.detect_valid_sticker_flag.set()
-                elif self.prev_color == "yellow" and (color in ["white","grey"]):
-                    self.detect_room_end.set()
                 elif self.prev_color=="orange" and color=="blue":
                     self.detect_entered_home_flag.set()
 

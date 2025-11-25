@@ -31,6 +31,7 @@ class Robot:
     
     CHECK_READJUST_TIME_INTERVAL = 0.1
     def __init__(self):
+        self.packages_dropped=False
         self.right_turns_passed = 0
         self.packages_delivered = 0
         self.right_wheel = Wheel('B')
@@ -74,35 +75,21 @@ class Robot:
                 break
             time.sleep(0.05)
 
-    def turn_right_90(self, power=POWER_FOR_TURN):
-        print("Turning right")
-        while True:
-            if self.emergency_flag.is_set():
-                self.emergency_stop()
-            with self.gyro_sensor.orientation_lock:
-                current_orientation = self.gyro_sensor.orientation
-            
-            if current_orientation > 88:
-                break
-            with self.wheel_lock:
-                self.left_wheel.spin_wheel_continuously(power)
-                self.right_wheel.spin_wheel_continuously(-power)
-        self.stop_moving()
-        self.gyro_sensor.reset_orientation()
+    def turn_x_deg(self, angle, power=POWER_FOR_TURN):
+        print(f"Turn {angle} degrees (+ right, - left)")
+        if angle > 0:
+            self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+            while self.gyro_sensor.orientation < angle:
+                pass
+        elif angle < 0:
+            self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+            while self.gyro_sensor.orientation > angle:
+                pass
+        else:
+            return
 
-    def turn_left_90(self, power=POWER_FOR_TURN):
-        print("Turning left")
-        while True:
-            if self.emergency_flag.is_set():
-                self.emergency_stop()
-            with self.gyro_sensor.orientation_lock:
-                current_orientation = self.gyro_sensor.orientation
-            
-            if current_orientation < -88:
-                break
-            with self.wheel_lock:
-                self.left_wheel.spin_wheel_continuously(-power)
-                self.right_wheel.spin_wheel_continuously(power)
         self.stop_moving()
         self.gyro_sensor.reset_orientation()
 
@@ -161,11 +148,10 @@ class Robot:
 
                 turn_detected = RIGHT_TURNS[self.right_turns_passed]
                 print(f"<-----------------this was deetcted: {turn_detected}----------------------->")
-                
 
                 if turn_detected == "home_valid" and self.go_home:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.turn_right_90()
+                    self.turn_x_deg(90)
                     self.gyro_sensor.reset_orientation()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.right_turns_passed += 1
@@ -177,7 +163,7 @@ class Robot:
 
                 elif turn_detected == "turn":
                     self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.turn_right_90()
+                    self.turn_x_deg(90)
                     self.gyro_sensor.reset_orientation()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.gyro_sensor.reset_orientation()
@@ -185,7 +171,7 @@ class Robot:
                     
                 elif turn_detected == "room" and not self.go_home:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.turn_right_90()
+                    self.turn_x_deg(90)
                     self.right_turns_passed += 1
                     self.detected_room_action()
                     self.gyro_sensor.reset_orientation()
@@ -223,31 +209,55 @@ class Robot:
             self.handle_meeting_room()
         self.color_sensing_system.move_sensor_to_right_side()
     
-    def handle_non_meeting_room(self):
-        position_of_green_sticker = self.sweep_room_for_green_sticker()
-        if position_of_green_sticker != float("inf"):
-            self.rotate_for_delivery(90-position_of_green_sticker)
-            if self.color_sensing_system.is_in_front or self.color_sensing_system.motor.get_position()==self.color_sensing_system.FRONT_POSITION:
-                self.color_sensing_system.move_sensor_to_right_side()
-            self.drop_off_package()
-            self.rotate_for_delivery(0) # 90 deg for the arm represents 0 for the robot
-        self.return_in_hallway_after_delivery()
-
-    def sweep_room_for_green_sticker(self)->int:
+    def handle_non_meetin_room(self)->int:
             #returns the angle at which the color sensor detects the green sticker
-        for _ in range(10):
-            if self.color_sensing_system.detect_room_end.is_set():
-                return float("inf")
-            if self.color_sensing_system.detect_valid_sticker_flag.is_set():
-                self.color_sensing_system.detect_valid_sticker_flag.clear()
-                self.color_sensing_system.motor.set_power(0)
-                print("detected the green sticker")
-                return self.color_sensing_system.motor.get_position()
-            self.color_sensing_system.move_sensor_side_to_side()
-            time.sleep(0.5)
+        self.move_slightly_forward_for_sweep(sleep=2) # this is just to allow the robot to be lined up
+        for i in range(5):
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
+            
+            # Advance a little to cover the next area of the office
             self.move_slightly_forward_for_sweep()
-        print("could not find the green sticker")
-        return float("inf")
+
+            # Sweep across the width of the office
+            self.color_sensing_system.motor.reset_encoder()
+            self.color_sensing_system.motor.set_limits(dps=90)
+            self.color_sensing_system.motor.set_position(-180)
+
+            # Catch any green event if detected for 2 seconds and get the angle of the sweeper
+            angle = 0
+            
+            for _ in range(60):
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.05)
+
+                if self.color_sensing_system.detect_valid_sticker_flag.is_set() and not self.packages_dropped:
+                    print("STOPPING ARM")
+                    self.color_sensing_system.motor.set_dps(0)
+                    
+                    self.stop_moving()
+                    self.color_sensing_system.detect_valid_sticker_flag.clear()
+                    # color arm zero at right
+                    print(f"ARM POSITION {self.color_sensing_system.motor.get_position()} ")
+                    angle = (self.color_sensing_system.motor.get_position() + 90)
+                    print(f"ANGLE: {angle}")
+                    
+                    self.packages_dropped = True
+            self.color_sensing_system.motor.wait_is_stopped()
+
+            # Return sweeper back to default position
+            self.color_sensing_system.motor.set_limits(dps=90)
+            self.color_sensing_system.motor.set_position(0)
+            self.color_sensing_system.motor.wait_is_stopped()
+
+            # Drop package on green sticker if detected
+            if self.packages_dropped:
+                self.turn_x_deg(angle)
+                self.drop_off_package()
+                self.turn_x_deg(-(angle / 20))
+                # reset_brick()
+                break
     
     def rotate_for_delivery(self, target_angle_of_gyro: int):
         print("Rotating the robot for delivery")
@@ -284,13 +294,11 @@ class Robot:
             time.sleep(0.05)
         time.sleep(2)
         self.stop_moving()
-        self.turn_right_90()
-        self.turn_right_90()
-        self.turn_right_90()
+        self.turn_x_deg(270)
         self.color_sensing_system.detect_room_exit_flag.clear()
 
     def handle_meeting_room(self):
-        self.turn_left_90()
+        self.turn_x_deg(-90)
         self.color_sensing_system.move_sensor_to_right_side()
     
     def head_home_after_turn(self):
@@ -327,11 +335,12 @@ class Robot:
         if self.packages_delivered == 2:
             self.go_home = True
 
-    def move_slightly_forward_for_sweep(self):
+    def move_slightly_forward_for_sweep(self, sleep = 1):
+        move_forward_speed = 7
         with self.wheel_lock:
-            self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
-            self.right_wheel.rotate_wheel_degrees(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
-        time.sleep(1)
+            self.left_wheel.spin_wheel_continuously(move_forward_speed)
+            self.right_wheel.rotate_wheel_degrees(move_forward_speed)
+        time.sleep(sleep)
         self.stop_moving()
         
     def emergency_stop(self):
