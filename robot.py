@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 from components.wheel import Wheel
@@ -27,7 +28,7 @@ class Robot:
     FORWARD_MOVEMENT_POWER_LEFT=FORWARD_MOVEMENT_POWER_RIGHT*1.25
     POWER_FOR_TURN=15
     EXIT_ROOM_POWER=10
-    READJUST_POWER=15
+    
     CHECK_READJUST_TIME_INTERVAL = 0.1
     def __init__(self):
         self.right_turns_passed = 0
@@ -108,8 +109,8 @@ class Robot:
     def readjust_alignment(self):
         # this would take info from the US sensor to check the distance from
         #the right wall and readjust if the distance is too large or small
+        readjust_power_increase = 5
         print("Readjusting")
-        self.stop_moving()
         while True:
             if self.emergency_flag.is_set():
                 self.emergency_stop()
@@ -123,12 +124,12 @@ class Robot:
 
             if current>0:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(-Robot.READJUST_POWER)
-                    self.right_wheel.spin_wheel_continuously(Robot.READJUST_POWER)
+                    self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+                    self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_RIGHT + readjust_power_increase)
             else:
                 with self.wheel_lock:
-                    self.left_wheel.spin_wheel_continuously(Robot.READJUST_POWER)
-                    self.right_wheel.spin_wheel_continuously(-Robot.READJUST_POWER)
+                    self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT+readjust_power_increase)
+                    self.right_wheel.spin_wheel_continuously(-Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             time.sleep(Robot.CHECK_READJUST_TIME_INTERVAL)
         if self.gyro_sensor.readjust_robot_flag.is_set():
             self.gyro_sensor.readjust_robot_flag.clear()

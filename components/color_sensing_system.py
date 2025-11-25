@@ -110,7 +110,7 @@ class   ColorSensingSystem:
         while not self.stop_sensing_flag.is_set():
             color = self.detect_color()
             print(color)
-            if color[0] is None:
+            if color is None:
                 color = self.prev_color
             with self.color_lock:
                 self.prev_color = self.most_recent_color
