@@ -258,32 +258,6 @@ class Robot:
                 self.turn_x_deg(-(angle / 20))
                 # reset_brick()
                 break
-    
-    def rotate_for_delivery(self, target_angle_of_gyro: int):
-        print("Rotating the robot for delivery")
-
-        if target_angle_of_gyro > 0: #right
-            left_power = Robot.POWER_FOR_TURN
-            right_power = -Robot.POWER_FOR_TURN
-            done = lambda cur: cur>=target_angle_of_gyro
-            
-        else: #left
-            left_power = -Robot.POWER_FOR_TURN
-            right_power = Robot.POWER_FOR_TURN
-            done = lambda cur: cur<=target_angle_of_gyro
-        
-        while True:
-            with self.gyro_sensor.orientation_lock:
-                current = self.gyro_sensor.orientation
-            
-            if done(current):
-                break
-                
-            with self.wheel_lock:
-                self.left_wheel.spin_wheel_continuously(left_power)
-                self.right_wheel.spin_wheel_continuously(right_power)
-            
-        self.stop_moving()
         
     def return_in_hallway_after_delivery(self):
         self.color_sensing_system.move_sensor_to_right_side()
@@ -339,7 +313,7 @@ class Robot:
         move_forward_speed = 7
         with self.wheel_lock:
             self.left_wheel.spin_wheel_continuously(move_forward_speed)
-            self.right_wheel.rotate_wheel_degrees(move_forward_speed)
+            self.right_wheel.spin_wheel_continuously(move_forward_speed)
         time.sleep(sleep)
         self.stop_moving()
         
