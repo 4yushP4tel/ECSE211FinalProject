@@ -12,16 +12,16 @@ import threading
 
 # This will store what each right turn which we detect means
 RIGHT_TURNS = [ "room",
-                "home_valid",
-                "turn",
-                "room",
                 "home_invalid",
                 "turn",
                 "room",
                 "home_valid",
                 "room",
+                "turn",
                 "home_invalid",
-                "turn" ]
+                "turn",
+                "room",
+                "home_valid"]
 
 class Robot:
     FORWARD_MOVEMENT_POWER_RIGHT=15
@@ -209,8 +209,9 @@ class Robot:
             self.handle_meeting_room()
         self.color_sensing_system.move_sensor_to_right_side()
     
-    def handle_non_meetin_room(self)->int:
+    def handle_non_meeting_room(self)->int:
             #returns the angle at which the color sensor detects the green sticker
+        self.color_sensing_system.move_sensor_to_right_side()
         self.move_slightly_forward_for_sweep(sleep=2) # this is just to allow the robot to be lined up
         for i in range(5):
             if self.emergency_flag.is_set():
@@ -250,6 +251,7 @@ class Robot:
             self.color_sensing_system.motor.set_limits(dps=90)
             self.color_sensing_system.motor.set_position(0)
             self.color_sensing_system.motor.wait_is_stopped()
+            time.sleep(2)
 
             # Drop package on green sticker if detected
             if self.packages_dropped:
@@ -309,8 +311,8 @@ class Robot:
         if self.packages_delivered == 2:
             self.go_home = True
 
-    def move_slightly_forward_for_sweep(self, sleep = 1):
-        move_forward_speed = 7
+    def move_slightly_forward_for_sweep(self, sleep = 0.75):
+        move_forward_speed = 12
         with self.wheel_lock:
             self.left_wheel.spin_wheel_continuously(move_forward_speed)
             self.right_wheel.spin_wheel_continuously(move_forward_speed)
