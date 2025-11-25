@@ -1,17 +1,18 @@
 import threading
 import math
+import time
 from utils.brick import EV3ColorSensor, Motor
 
 # RGB reference data (normalized)
 color_data = {
-    'orange': [173.44, 81.67, 27.17],
-    'yellow': [199.61, 164.11, 39.06],
-    'white': [234.59, 245.94, 296.59],
-    'green': [106.35, 169.82, 41.88],
-    'red': [140.06, 18.89, 22.22],
-    'black': [33.70, 35.45, 21.35],
-    'blue': [114.95, 167.65, 247.30],
-    'grey': [177, 188, 221]
+    'orange': [184, 84, 31],
+    'yellow': [209, 172, 42],
+    'white': [245, 252, 301],
+    'green': [100, 154, 44],
+    'red': [137, 20, 25],
+    'black': [26, 22, 27],
+    'blue': [114, 163, 238],
+    'grey': [209, 213, 260]
 }
 
 
@@ -20,7 +21,6 @@ class ColorSensingSystem:
     def __init__(self, sensor_port, motor_port):
         self.color_sensor = EV3ColorSensor(sensor_port)
         self.sweeper = Motor(motor_port)
-        self.most_recent_color = ""
         self.color_sensing_thread = None
         self.stop_color_event = threading.Event()
         self.detect_black_event = threading.Event()
@@ -28,6 +28,9 @@ class ColorSensingSystem:
         self.detect_blue_event = threading.Event()
         self.detect_red_event = threading.Event()
         self.detect_green_event = threading.Event()
+        self.color_lock = threading.Lock()
+        self.most_recent_color = None
+        self.prev_color = None
 
     # Start color detection loop in thread
     def start_detecting_color(self):
@@ -48,24 +51,26 @@ class ColorSensingSystem:
         while not self.stop_color_event.is_set():
             color = self.detect_color_from_rgb(self.color_sensor.get_rgb())
 
-            if color[0] is None:
-                color = self.most_recent_color
-            if color == "black":
-                self.detect_black_event.set()
-            elif color == "orange":
-                self.detect_orange_event.set()
-            elif color == "blue":
-                self.detect_blue_event.set()
-            elif color == "red":
-                self.detect_red_event.set()
-            elif color == "green":
-                self.detect_green_event.set()
-
-            self.most_recent_color = color
+            if color is not None:
+                if color == "black":
+                    self.detect_black_event.set()
+                elif color == "orange":
+                    self.detect_orange_event.set()
+                elif color == "blue":
+                    self.detect_blue_event.set()
+                elif color == "red":
+                    self.detect_red_event.set()
+                elif color == "green" and self.prev_color and self.prev_color == "green":
+                    self.detect_green_event.set()
+            print(color)
+            time.sleep(0.05)
+            self.prev_color = color
 
     # Detect the closest matching color using raw RGB values
     def detect_color_from_rgb(self, rgb):
         r, g, b = rgb
+        if r is None or g is None or b is None:
+            return None
         min_distance = float('inf')
         closest_color = None
 

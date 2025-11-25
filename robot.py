@@ -10,7 +10,7 @@ from utils.brick import reset_brick, wait_ready_sensors, Motor
 
 
 class Robot:
-    REALIGNMENT_CORRECTION = 15
+    REALIGNMENT_CORRECTION = 20
     DEFAULT_WHEEL_SPEED = 90
     LEFT_WHEEL_CORRECTION = 0
     RIGHT_WHEEL_CORRECTION = 0
@@ -46,7 +46,7 @@ class Robot:
 
         # Turn on first corner
         self.move_straight_until_color("black")
-        self.turn_x_degrees(88)
+        self.turn_x_degrees(80)
 
         # Validate second office and process it if necessary
         self.move_straight_until_color("orange")
@@ -65,14 +65,14 @@ class Robot:
 
         # Turn on second corner
         self.move_straight_until_color("black")
-        self.turn_x_degrees(88)
+        self.turn_x_degrees(80)
 
         # Skip third (invalid) mail
         self.move_straight_until_color("black")
 
         # Turn on third corner
         self.move_straight_until_color("black")
-        self.turn_x_degrees(88)
+        self.turn_x_degrees(80)
 
         # Validate fourth office and process it if necessary
         self.move_straight_until_color("orange")
@@ -90,6 +90,7 @@ class Robot:
         print(f"Move straight until color {color} is detected")
         self.move_straight(1)
         while True:
+            time.sleep(0.05)
             if self.color_sensing_system.detect_black_event.is_set() and color == "black":
                 self.color_sensing_system.detect_black_event.clear()
                 break
@@ -111,8 +112,9 @@ class Robot:
         self.move_straight(1)
 
         # 2 seconds to check entrance
-        while time.time() - time.time() < 2:
+        for i in range(90):
             self.check_stop_emergency_event()
+            time.sleep(0.05)
 
             if self.color_sensing_system.detect_red_event.is_set():
                 self.color_sensing_system.detect_red_event.clear()
@@ -124,13 +126,13 @@ class Robot:
 
     # Robot behaviour to process office and return back to initial path
     def process_office(self):
-        self.turn_x_degrees(88)
+        self.turn_x_degrees(80)
         self.visit_office()
         self.exit_office()
-        self.turn_x_degrees(-88)
+        self.turn_x_degrees(-80)
 
     def return_home(self):
-        self.turn_x_degrees(88)
+        self.turn_x_degrees(80)
         self.move_straight_until_color("blue")
         self.stop_robot()
 
@@ -140,14 +142,15 @@ class Robot:
         if angle > 0:
             self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
             self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            while self.gyro_sensor.orientation < angle:
+                pass
         elif angle < 0:
             self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
             self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            while self.gyro_sensor.orientation > angle:
+                pass
         else:
             return
-
-        while self.gyro_sensor.orientation < angle:
-            pass
 
         self.stop_moving()
         self.gyro_sensor.gyro_sensor.reset_measure()
@@ -159,9 +162,9 @@ class Robot:
         print("Sweep office and drop package on green sticker")
 
         # 5 sweeps of the office
-        for _ in range(5) and not self.packages_dropped:
+        for i in range(5):
             self.check_stop_emergency_event()
-
+            
             # Advance a little to cover the next area of the office
             self.move_straight(1)
             time.sleep(1)
@@ -169,28 +172,43 @@ class Robot:
 
             # Sweep across the width of the office
             self.color_sensing_system.sweeper.reset_encoder()
-            self.color_sensing_system.sweeper.set_position(180)
+            self.color_sensing_system.sweeper.set_limits(dps=90)
+            self.color_sensing_system.sweeper.set_position(-180)
 
             # Catch any green event if detected for 2 seconds and get the angle of the sweeper
             angle = 0
-            while time.time() - time.time() < 2:
+            
+            for i in range(60):
                 self.check_stop_emergency_event()
+                time.sleep(0.05)
 
-                if self.color_sensing_system.detect_green_event.is_set():
+                if self.color_sensing_system.detect_green_event.is_set() and not self.packages_dropped:
+                    print("STOPPING ARM")
+                    self.color_sensing_system.sweeper.set_dps(0)
+                    
+                    self.stop_moving()
                     self.color_sensing_system.detect_green_event.clear()
-                    angle = -(self.color_sensing_system.sweeper.get_position() - 90)
+                    # color arm zero at right
+                    print(f"ARM POSITION {self.color_sensing_system.sweeper.get_position()} ")
+                    angle = (self.color_sensing_system.sweeper.get_position() + 90)
+                    print(f"ANGLE: {angle}")
+                    
                     self.packages_dropped = True
             self.color_sensing_system.sweeper.wait_is_stopped()
 
             # Return sweeper back to default position
-            self.color_sensing_system.sweeper.set_position(-180)
+            self.color_sensing_system.sweeper.set_limits(dps=90)
+            self.color_sensing_system.sweeper.set_position(0)
             self.color_sensing_system.sweeper.wait_is_stopped()
+            time.sleep(2)
 
             # Drop package on green sticker if detected
             if self.packages_dropped:
                 self.turn_x_degrees(angle)
                 self.drop_off_package()
-                self.turn_x_degrees(-angle)
+                self.turn_x_degrees(-(angle / 20))
+                reset_brick()
+                break
 
     # Move backwards until color orange is detected
     def exit_office(self):
@@ -198,6 +216,7 @@ class Robot:
         self.move_straight(-1)
         while not self.color_sensing_system.detect_orange_event.is_set():
             self.check_stop_emergency_event()
+            time.sleep(0.05)
 
         self.color_sensing_system.detect_orange_event.clear()
         self.stop_moving()

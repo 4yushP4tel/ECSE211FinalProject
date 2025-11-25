@@ -1,5 +1,6 @@
 from utils.brick import EV3GyroSensor
 import threading
+import time
 
 
 class GyroSensor:
@@ -30,8 +31,8 @@ class GyroSensor:
     def monitor_orientation_loop(self):
         while not self.stop_orientation_event.is_set():
             self.orientation = self.gyro_sensor.get_abs_measure()
-
-            if self.orientation > GyroSensor.THRESHOLD_FOR_READJUST:
-                self.readjust_left_event.set()
-            elif self.orientation < -GyroSensor.THRESHOLD_FOR_READJUST:
-                self.readjust_right_event.set()
+            if self.orientation is not None:
+                if self.orientation > GyroSensor.THRESHOLD_FOR_READJUST:
+                    self.readjust_left_event.set()
+                elif self.orientation < -GyroSensor.THRESHOLD_FOR_READJUST:
+                    self.readjust_right_event.set()
