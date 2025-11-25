@@ -146,7 +146,7 @@ class Robot:
         else:
             return
 
-        while self.gyro_sensor.gyro_sensor.get_abs_measure() < angle:
+        while self.gyro_sensor.orientation < angle:
             pass
 
         self.stop_moving()

@@ -48,6 +48,8 @@ class ColorSensingSystem:
         while not self.stop_color_event.is_set():
             color = self.detect_color_from_rgb(self.color_sensor.get_rgb())
 
+            if color[0] is None:
+                color = self.most_recent_color
             if color == "black":
                 self.detect_black_event.set()
             elif color == "orange":

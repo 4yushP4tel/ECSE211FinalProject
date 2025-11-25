@@ -7,6 +7,7 @@ class GyroSensor:
 
     def __init__(self, port):
         self.gyro_sensor = EV3GyroSensor(port)
+        self.orientation = 0
         self.monitor_orientation_thread = None
         self.stop_orientation_event = threading.Event()
         self.readjust_left_event = threading.Event()
@@ -28,9 +29,9 @@ class GyroSensor:
     # Continuously monitor orientation and set corresponding events for robot to catch
     def monitor_orientation_loop(self):
         while not self.stop_orientation_event.is_set():
-            orientation = self.gyro_sensor.get_abs_measure()
+            self.orientation = self.gyro_sensor.get_abs_measure()
 
-            if orientation > GyroSensor.THRESHOLD_FOR_READJUST:
+            if self.orientation > GyroSensor.THRESHOLD_FOR_READJUST:
                 self.readjust_left_event.set()
-            elif orientation < -GyroSensor.THRESHOLD_FOR_READJUST:
+            elif self.orientation < -GyroSensor.THRESHOLD_FOR_READJUST:
                 self.readjust_right_event.set()
