@@ -16,7 +16,7 @@ color_data = {
 }
 
 class   ColorSensingSystem:
-    FRONT_POSITION = -93
+    FRONT_POSITION = -90
     ALL_THE_WAY_LEFT_POSITION = -180 #as much as the robot is able to go
 
     def __init__(self, sensor_port, motor_port):
@@ -37,21 +37,21 @@ class   ColorSensingSystem:
         self.detect_room_end = threading.Event()
         self.color_lock = threading.Lock()
         self.motor.reset_encoder()
-        self.motor.set_limits(power=30)
+        self.motor.set_limits(power=25)
 
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
         self.motor.set_position(ColorSensingSystem.FRONT_POSITION)
         self.motor.wait_is_stopped()
         self.is_in_front = True
-        time.sleep(0.2)
+        time.sleep(1)
 
     def move_sensor_to_right_side(self):
         """Moves the sensor back to the side of the robot after it leaves a room."""
         self.motor.set_position(0)
         self.motor.wait_is_stopped()
         self.is_in_front = False
-        time.sleep(0.2)
+        time.sleep(1)
 
     def move_sensor_side_to_side(self):
         """Moves sensor side to side for sticker detection"""
@@ -63,16 +63,9 @@ class   ColorSensingSystem:
         self.motor.wait_is_stopped()
         time.sleep(1)
 
-        #Move slightly toward center to prevent stalling at extreme
-        self.motor.set_position(self.motor.get_position() + 10)
-        self.motor.wait_is_stopped()
-
         #Return to front position
-        self.motor.set_position(ColorSensingSystem.FRONT_POSITION)
-        self.motor.wait_is_stopped()
-        self.is_in_front = True
+        self.move_sensor_to_front()
 
-        
 
     def detect_color(self):
         """

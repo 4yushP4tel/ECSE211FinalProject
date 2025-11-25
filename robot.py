@@ -66,15 +66,18 @@ class Robot:
         #the button has been pressed
         while not self.emergency_flag.is_set():
             if self.emergency_touch_sensor.is_pressed():
+                self.emergency_flag.set()
                 print("EMERGENCY BUTTON PRESSED!")
-                self.emergency_flag.clear()
                 self.emergency_stop()
+                self.emergency_flag.clear()
                 break
             time.sleep(0.05)
 
     def turn_right_90(self, power=POWER_FOR_TURN):
         print("Turning right")
         while True:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
             with self.gyro_sensor.orientation_lock:
                 current_orientation = self.gyro_sensor.orientation
             
@@ -89,6 +92,8 @@ class Robot:
     def turn_left_90(self, power=POWER_FOR_TURN):
         print("Turning left")
         while True:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
             with self.gyro_sensor.orientation_lock:
                 current_orientation = self.gyro_sensor.orientation
             
@@ -106,6 +111,8 @@ class Robot:
         print("Readjusting")
         self.stop_moving()
         while True:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
             with self.gyro_sensor.orientation_lock:
                 current = self.gyro_sensor.orientation
             
@@ -130,7 +137,7 @@ class Robot:
     def move_in_hallway(self):
         while True:
             if self.emergency_flag.is_set():
-                return
+                self.emergency_stop()
             
             #if self.gyro_sensor.readjust_robot_flag.is_set():
             #    with self.gyro_sensor.orientation_lock:
@@ -152,6 +159,8 @@ class Robot:
                     continue
 
                 turn_detected = RIGHT_TURNS[self.right_turns_passed]
+                print(f"<-----------------this was deetcted: {turn_detected}----------------------->")
+                
 
                 if turn_detected == "home_valid" and self.go_home:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
@@ -325,9 +334,11 @@ class Robot:
         self.stop_moving()
         
     def emergency_stop(self):
-        with self.wheel_lock:
-            self.stop_moving()
+        self.color_sensing_system.stop_detecting_color()
+        self.gyro_sensor.stop_monitoring_orientation()
+        self.stop_moving()
         self.color_sensing_system.stop_detecting_color()
         print("EMERGENCY STOP ACTIVATED")
         reset_brick()
         os._exit(1)
+        
