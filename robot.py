@@ -6,13 +6,12 @@ from components.gyro_sensor import GyroSensor
 from components.color_sensing_system import ColorSensingSystem
 from components.speaker import Speaker
 from components.drop_off_system import DropOffSystem
-from components.emergency_stop_system import EmergencyStopSystem
 from utils.brick import reset_brick, wait_ready_sensors, Motor, TouchSensor
 
 
 class Robot:
     REALIGNMENT_CORRECTION = 20
-    DEFAULT_WHEEL_SPEED = 90
+    DEFAULT_WHEEL_SPEED = 15
     LEFT_WHEEL_CORRECTION = 1.2
     RIGHT_WHEEL_CORRECTION = 1
     LEFT_WHEEL_SPEED_WITH_CORRECTION = DEFAULT_WHEEL_SPEED * LEFT_WHEEL_CORRECTION
@@ -150,13 +149,13 @@ class Robot:
     def turn_x_degrees(self, angle):
         print(f"Turn {angle} degrees (+ right, - left)")
         if angle > 0:
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            self.left_wheel.set_power(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_power(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
             while self.gyro_sensor.orientation < angle:
                 pass
         elif angle < 0:
-            self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            self.left_wheel.set_power(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_power(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
             while self.gyro_sensor.orientation > angle:
                 pass
         else:
@@ -196,7 +195,7 @@ class Robot:
 
                 if self.color_sensing_system.detect_green_event.is_set() and not self.packages_dropped:
                     print("STOPPING ARM")
-                    self.color_sensing_system.sweeper.set_dps(0)
+                    self.color_sensing_system.sweeper.set_power(0)
                     self.stop_moving()
                     self.color_sensing_system.detect_green_event.clear()
                     print(f"ARM POSITION {self.color_sensing_system.sweeper.get_position()} ")
@@ -235,28 +234,28 @@ class Robot:
     # Move straight
     def move_straight(self, direction):
         print("Move straight")
-        self.left_wheel.set_dps(direction * Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-        self.right_wheel.set_dps(direction * Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+        self.left_wheel.set_power(direction * Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+        self.right_wheel.set_power(direction * Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
 
     # Readjust alignment to move straight if necessary
     def readjust_alignment_if_necessary(self):
         if self.gyro_sensor.readjust_right_event.is_set():
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            self.left_wheel.set_power(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
+            self.right_wheel.set_power(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
             self.gyro_sensor.readjust_right_event.clear()
         elif self.gyro_sensor.readjust_left_event.is_set():
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
+            self.left_wheel.set_power(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_power(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION + Robot.REALIGNMENT_CORRECTION)
             self.gyro_sensor.readjust_left_event.clear()
         else:
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
+            self.left_wheel.set_power(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
+            self.right_wheel.set_power(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
 
     # Stop all movement of wheels
     def stop_moving(self):
         print("Stop all movement of wheels")
-        self.left_wheel.set_dps(0)
-        self.right_wheel.set_dps(0)
+        self.left_wheel.set_power(0)
+        self.right_wheel.set_power(0)
         time.sleep(1)
 
     # Drop off package and play sound
