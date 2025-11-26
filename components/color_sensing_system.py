@@ -91,24 +91,22 @@ class ColorSensingSystem:
     def detect_color_loop(self):
         while not self.stop_sensing_flag.is_set():
             color = self.detect_color()
-            print(color)
-            if color is None:
-                color = self.prev_color
-            with self.color_lock:
-                self.prev_color = self.most_recent_color
-                self.most_recent_color = color
-                if self.prev_color == "black" and color == "black":
-                    self.detect_hallway_on_right_flag.set()
-                elif color == "red" and self.prev_color == "red":
-                    self.detect_invalid_entrance_flag.set()
-                elif self.prev_color == "orange" and color == "orange":
-                    self.detect_valid_entrance_flag.set()
-                elif self.prev_color == "yellow" and color == "orange":
-                    self.detect_room_exit_flag.set()
-                elif self.prev_color == "green" and color == "green":
-                    self.detect_valid_sticker_flag.set()
-                elif self.prev_color == "orange" and color == "blue":
-                    self.detect_entered_home_flag.set()
+            if color is not None:
+                with self.color_lock:
+                    self.prev_color = self.most_recent_color
+                    self.most_recent_color = color
+                    if self.prev_color == "black" and color == "black":
+                        self.detect_hallway_on_right_flag.set()
+                    elif color == "red" and self.prev_color == "red":
+                        self.detect_invalid_entrance_flag.set()
+                    elif self.prev_color == "orange" and color == "orange":
+                        self.detect_valid_entrance_flag.set()
+                    elif self.prev_color == "yellow" and color == "orange":
+                        self.detect_room_exit_flag.set()
+                    elif self.prev_color == "green" and color == "green":
+                        self.detect_valid_sticker_flag.set()
+                    elif self.prev_color == "orange" and color == "blue":
+                        self.detect_entered_home_flag.set()
 
             print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
             time.sleep(0.05)
@@ -124,3 +122,4 @@ class ColorSensingSystem:
         self.stop_sensing_flag.set()
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
             self.color_sensing_thread.join()
+
