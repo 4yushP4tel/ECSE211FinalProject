@@ -29,7 +29,6 @@ class ColorSensingSystem:
         self.detect_red_event = threading.Event()
         self.detect_green_event = threading.Event()
         self.color_lock = threading.Lock()
-        self.most_recent_color = None
         self.prev_color = None
 
     # Start color detection loop in thread
@@ -52,19 +51,19 @@ class ColorSensingSystem:
             color = self.detect_color_from_rgb(self.color_sensor.get_rgb())
 
             if color is not None:
-                if color == "black":
+                if color == "black" and self.prev_color and self.prev_color == "black":
                     self.detect_black_event.set()
-                elif color == "orange":
+                elif color == "orange" and self.prev_color and self.prev_color == "orange":
                     self.detect_orange_event.set()
-                elif color == "blue":
+                elif color == "blue" and self.prev_color and self.prev_color == "blue":
                     self.detect_blue_event.set()
-                elif color == "red":
+                elif color == "red" and self.prev_color and self.prev_color == "red":
                     self.detect_red_event.set()
                 elif color == "green" and self.prev_color and self.prev_color == "green":
                     self.detect_green_event.set()
             print(color)
-            time.sleep(0.05)
             self.prev_color = color
+            time.sleep(0.05)
 
     # Detect the closest matching color using raw RGB values
     def detect_color_from_rgb(self, rgb):

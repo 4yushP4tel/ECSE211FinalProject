@@ -36,3 +36,4 @@ class GyroSensor:
                     self.readjust_left_event.set()
                 elif self.orientation < -GyroSensor.THRESHOLD_FOR_READJUST:
                     self.readjust_right_event.set()
+            time.sleep(0.05)

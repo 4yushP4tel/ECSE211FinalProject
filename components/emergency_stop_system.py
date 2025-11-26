@@ -24,7 +24,7 @@ class EmergencyStopSystem:
     # Continuously detect emergency button and emergency event for robot to catch
     def detect_emergency_loop(self):
         while not self.stop_emergency_event.is_set():
-            time.sleep(0.5)
+            time.sleep(0.05)
             if self.touch_sensor.is_pressed():
                 self.stop_emergency_event.set()
 
