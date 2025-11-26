@@ -24,7 +24,7 @@ RIGHT_TURNS = ["room",
 
 class Robot:
     FORWARD_MOVEMENT_POWER_RIGHT = 15
-    FORWARD_MOVEMENT_POWER_LEFT = FORWARD_MOVEMENT_POWER_RIGHT * 1.25
+    FORWARD_MOVEMENT_POWER_LEFT = FORWARD_MOVEMENT_POWER_RIGHT
     POWER_FOR_TURN = 15
     EXIT_ROOM_POWER = 10
 
@@ -39,6 +39,7 @@ class Robot:
         self.gyro_sensor = GyroSensor(4)
         self.color_sensing_system = ColorSensingSystem(3, 'D')
         self.emergency_touch_sensor = TouchSensor(1)
+        self.counter_lock = threading.Lock()
         wait_ready_sensors()
         time.sleep(1)  # give some time to stabilize sensors
 
@@ -47,6 +48,11 @@ class Robot:
         self.emergency_flag = threading.Event()
         self.wheel_lock = threading.Lock()  # using this to ensure no conflicts with emergency stop and main thread
 
+        # Start the thread
+        self.start_emergency_monitoring()
+        self.color_sensing_system.start_detecting_color()
+        self.gyro_sensor.start_monitoring_orientation()
+
         # Additional attributes for robot logic
         self.packages_dropped = False
         self.right_turns_passed = 0
@@ -54,11 +60,6 @@ class Robot:
 
     # Main method to activate the robot and start the delivery process
     def main(self):
-        # Start the threads
-        self.start_emergency_monitoring()
-        self.color_sensing_system.start_detecting_color()
-        self.gyro_sensor.start_monitoring_orientation()
-
         # Start the delivery
         self.start_delivery()
         self.stop_moving()
@@ -71,6 +72,7 @@ class Robot:
     # Main robot logic for the delivery, written for potential reusability for more complex mappings
     def start_delivery(self):
         while True:
+            print(self.right_turns_passed, RIGHT_TURNS[int(self.right_turns_passed)])
             if self.emergency_flag.is_set():
                 self.emergency_stop()
 
@@ -86,10 +88,11 @@ class Robot:
                 print("Detected path on right")
                 time.sleep(0.5)
                 self.stop_moving()
-
-                turn_detected = RIGHT_TURNS[self.right_turns_passed]
-                self.right_turns_passed += 1
-                print(f"<-----------------Turn detected: {turn_detected}----------------------->")
+                
+                with self.counter_lock:
+                    turn_detected = RIGHT_TURNS[int(self.right_turns_passed)]
+                    self.right_turns_passed += 0.5
+                    print(f"<-----------------Turn detected: {turn_detected}----------------------->")
 
                 # Right turn into home if all packages delivered
                 if turn_detected == "home_valid" and self.packages_delivered == 2:
@@ -101,6 +104,7 @@ class Robot:
 
                 # Skip right turn due to invalid home
                 elif turn_detected == "home_invalid":
+                    time.sleep(0.2)
                     continue
 
                 # Right turn on corner
@@ -192,30 +196,26 @@ class Robot:
     def validate_room_entrance(self):
         self.color_sensing_system.move_sensor_to_front()
         time.sleep(0.5)
-        while not self.color_sensing_system.detect_invalid_entrance_flag.is_set() and \
-            not self.color_sensing_system.detect_valid_entrance_flag.is_set():
-            if self.emergency_flag.is_set():
-                self.emergency_stop()
-            with self.wheel_lock:
-                self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
-                self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
-            time.sleep(0.05)
+        self.move_straight(1)
+        time.sleep(1.5)
         self.stop_moving()
-
-        if self.color_sensing_system.detect_valid_entrance_flag.is_set():
-            self.color_sensing_system.detect_valid_entrance_flag.clear()
-            print("detected valid entrance")
-            self.color_sensing_system.move_sensor_to_right_side()
-            self.handle_non_meeting_room()
-        elif self.color_sensing_system.detect_invalid_entrance_flag.is_set():
+        if self.color_sensing_system.detect_invalid_entrance_flag.is_set():
             self.color_sensing_system.detect_invalid_entrance_flag.clear()
             print("detected invalid entrance")
             self.stop_moving()
             self.color_sensing_system.move_sensor_to_right_side()
             self.handle_meeting_room()
+        else:
+            self.color_sensing_system.detect_valid_entrance_flag.clear()
+            print("detected valid entrance")
+            self.color_sensing_system.move_sensor_to_right_side()
+            self.handle_non_meeting_room()
 
     # Skip room
     def handle_meeting_room(self):
+        self.move_straight(-1)
+        time.sleep(1)
+        self.stop_moving()
         self.turn_x_deg(270)
         self.color_sensing_system.move_sensor_to_right_side()
 

@@ -56,7 +56,7 @@ class ColorSensingSystem:
         'Black', 'White', 'Red', 'Green', 'Orange', or 'Unknown'.
         """
         rgb = self.color_sensor.get_rgb()  # returns list [R, G, B]
-        print(f"RGB sensed: {rgb}")
+        #print(f"RGB sensed: {rgb}")
         return self.detect_color_from_rgb(rgb)
 
     def detect_color_from_rgb(self, rgb):
@@ -103,12 +103,13 @@ class ColorSensingSystem:
                         self.detect_valid_entrance_flag.set()
                     elif self.prev_color == "yellow" and color == "orange":
                         self.detect_room_exit_flag.set()
-                    elif self.prev_color == "green" and color == "green":
-                        self.detect_valid_sticker_flag.set()
+                    elif self.prev_color == "yellow" and color == "green":
+                        if self.detect_color() == "green":
+                            self.detect_valid_sticker_flag.set()
                     elif self.prev_color == "orange" and color == "blue":
                         self.detect_entered_home_flag.set()
 
-            print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
+            #print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
             time.sleep(0.05)
 
     def start_detecting_color(self):
