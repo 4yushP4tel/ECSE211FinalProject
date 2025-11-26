@@ -144,7 +144,6 @@ class Robot:
 
             # Turn right on valid intersections and then start moving again
             if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
-                self.color_sensing_system.detect_hallway_on_right_flag.clear()
                 print("Detected path on right")
                 time.sleep(0.5)
                 self.stop_moving()
@@ -187,6 +186,9 @@ class Robot:
                     self.color_sensing_system.is_in_hallway = True
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                 
+        if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
+            self.color_sensing_system.detect_hallway_on_right_flag.clear()
+    
     def stop_moving(self):
         with self.wheel_lock:
             self.left_wheel.stop_spinning()

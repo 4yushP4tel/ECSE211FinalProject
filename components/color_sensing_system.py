@@ -120,10 +120,10 @@ class   ColorSensingSystem:
                 if self.prev_color == "white" and color == "black" and self.is_in_hallway:
                     print("<---------------------turn detected------------------------->")
                     self.detect_hallway_on_right_flag.set()
-                elif color == "red" and self.prev_color=="red" and self.is_handling_room:
+                elif color == "red" and self.prev_color=="orange" and self.is_handling_room:
                     print("<----------------------invalid entrance detected------------------------>")
                     self.detect_invalid_entrance_flag.set()
-                elif self.prev_color == "orange" and color == "orange" and self.is_handling_room:
+                elif self.prev_color == "orange" and color == "yellow" and self.is_handling_room:
                     print("<-------------------------valid entrance detected--------------------->")
                     self.detect_valid_entrance_flag.set()
                 elif self.prev_color=="yellow" and color=="orange" and self.is_handling_room:
