@@ -49,8 +49,7 @@ class Robot:
 
         # Turn on first corner
         self.move_straight_until_color("black")
-        self.turn_until_x_orientation(90)
-        self.gyro_sensor.gyro_sensor.reset_measure()
+        self.turn_x_degrees(90)
 
         # Validate second office and process it if necessary
         self.move_straight_until_color("black")
@@ -69,16 +68,14 @@ class Robot:
 
         # Turn on second corner
         self.move_straight_until_color("black")
-        self.turn_until_x_orientation(90)
-        self.gyro_sensor.gyro_sensor.reset_measure()
+        self.turn_x_degrees(90)
 
         # Skip third (invalid) mail
         self.move_straight_until_color("black")
 
         # Turn on third corner
         self.move_straight_until_color("black")
-        self.turn_until_x_orientation(90)
-        self.gyro_sensor.gyro_sensor.reset_measure()
+        self.turn_x_degrees(90)
 
         # Validate fourth office and process it if necessary
         self.move_straight_until_color("black")
@@ -116,7 +113,9 @@ class Robot:
     # Return False if color red detected at entrance and True otherwise
     def validate_entrance(self):
         print("Return False if color red detected at entrance and True otherwise")
-        self.turn_until_x_orientation(90)
+        self.turn_x_degrees(90)
+        self.color_sensing_system.sweeper.reset_encoder()
+        self.color_sensing_system.sweeper.set_limits(dps=90)
         self.color_sensing_system.sweeper.set_position(-90)
         self.move_straight(1)
 
@@ -129,9 +128,11 @@ class Robot:
             if self.color_sensing_system.detect_red_event.is_set():
                 self.color_sensing_system.detect_red_event.clear()
                 self.stop_moving()
-                self.turn_until_x_orientation(0)
+                self.color_sensing_system.sweeper.set_position(0)
+                self.turn_x_degrees(-90)
                 return False
 
+        self.color_sensing_system.sweeper.set_position(0)
         self.stop_moving()
         return True
 
@@ -141,27 +142,9 @@ class Robot:
         self.exit_office()
 
     def return_home(self):
-        self.turn_until_x_orientation(90)
+        self.turn_x_degrees(90)
         self.move_straight_until_color("blue")
         self.emergency_stop()
-
-    # Turn until current orientation of robot reaches desired orientation
-    def turn_until_x_orientation(self, angle):
-        print(f"Turn {angle - self.gyro_sensor.orientation} degrees (+ right, - left)")
-        if angle > self.gyro_sensor.orientation:
-            self.left_wheel.set_dps(Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(-Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-            while self.gyro_sensor.orientation < angle:
-                pass
-        elif angle < self.gyro_sensor.orientation:
-            self.left_wheel.set_dps(-Robot.LEFT_WHEEL_SPEED_WITH_CORRECTION)
-            self.right_wheel.set_dps(Robot.RIGHT_WHEEL_SPEED_WITH_CORRECTION)
-            while self.gyro_sensor.orientation > angle:
-                pass
-        else:
-            return
-
-        self.stop_moving()
 
     # Turn x degrees (+ right, - left)
     def turn_x_degrees(self, angle):
@@ -180,6 +163,7 @@ class Robot:
             return
 
         self.stop_moving()
+        self.gyro_sensor.gyro_sensor.reset_measure()
 
     # Additional helper functions
 
@@ -230,10 +214,10 @@ class Robot:
 
             # Drop package on green sticker if detected
             if self.packages_dropped:
-                current_orientation = self.gyro_sensor.orientation
-                self.turn_until_x_orientation(current_orientation + angle)
+                self.turn_x_degrees(angle)
                 self.drop_off_package()
-                self.turn_until_x_orientation(current_orientation)
+                self.turn_x_degrees(-(angle / 20))
+                reset_brick()
                 break
 
     # Move backwards until color orange is detected
@@ -246,7 +230,7 @@ class Robot:
 
         self.color_sensing_system.detect_orange_event.clear()
         self.stop_moving()
-        self.turn_until_x_orientation(0)
+        self.turn_x_degrees(-90)
 
     # Move straight
     def move_straight(self, direction):
