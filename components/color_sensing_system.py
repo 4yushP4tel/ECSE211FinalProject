@@ -97,12 +97,10 @@ class ColorSensingSystem:
                 with self.color_lock:
                     self.prev_color = self.most_recent_color
                     self.most_recent_color = color
-                    if self.prev_color == "black" and color == "black":
+                    if self.prev_color in ["white", "grey"] and color == "black":
                         self.detect_hallway_on_right_flag.set()
-                    elif color == "red" and self.prev_color == "red":
+                    elif self.prev_color == "orange" and color == "red":
                         self.detect_invalid_entrance_flag.set()
-                    elif self.prev_color == "orange" and color == "orange":
-                        self.detect_valid_entrance_flag.set()
                     elif self.prev_color == "yellow" and color == "orange":
                         self.detect_room_exit_flag.set()
                     elif self.prev_color == "yellow" and color == "green":
