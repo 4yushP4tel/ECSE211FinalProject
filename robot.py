@@ -94,8 +94,7 @@ class Robot:
                 # Right turn into home if all packages delivered
                 if turn_detected == "home_valid" and self.packages_delivered == 2:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.turn_until_x_orientation(90)
-                    self.gyro_sensor.reset_orientation()
+                    self.turn_x_deg(90)
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.head_home()
                     break
@@ -107,16 +106,14 @@ class Robot:
                 # Right turn on corner
                 elif turn_detected == "turn":
                     self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.turn_until_x_orientation(90)
-                    self.gyro_sensor.reset_orientation()
+                    self.turn_x_deg(90)
                     self.gyro_sensor.check_if_moving_straight_on_path = True
 
                 # Right turn into room if not all packages delivered
                 elif turn_detected == "room" and self.packages_delivered != 2:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.turn_until_x_orientation(90)
+                    self.turn_x_deg(90)
                     self.validate_room_entrance()
-                    self.gyro_sensor.reset_orientation()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
 
     # TODO
@@ -151,6 +148,28 @@ class Robot:
             self.gyro_sensor.readjust_robot_flag.clear()
         print("Readjustment complete")
 
+    def turn_x_deg(self, angle, power=POWER_FOR_TURN):
+        print(f"Turn {angle} degrees (+ right, - left)")
+        if angle > 0:
+            self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+            while self.gyro_sensor.orientation < angle:
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.01)
+        elif angle < 0:
+            self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+            while self.gyro_sensor.orientation > angle:
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.01)
+        else:
+            return
+
+        self.stop_moving()
+        self.gyro_sensor.reset_orientation()
+
     # Turn until current orientation of robot reaches desired orientation
     def turn_until_x_orientation(self, angle, power=POWER_FOR_TURN):
         print(f"Turn {angle - self.gyro_sensor.orientation} degrees (+ right, - left)")
@@ -174,10 +193,12 @@ class Robot:
         self.color_sensing_system.move_sensor_to_front()
         time.sleep(0.5)
         while not self.color_sensing_system.detect_invalid_entrance_flag.is_set() and \
-                not self.color_sensing_system.detect_valid_entrance_flag.is_set():
+            not self.color_sensing_system.detect_valid_entrance_flag.is_set():
             if self.emergency_flag.is_set():
-                return
-            self.move_straight(1)
+                self.emergency_stop()
+            with self.wheel_lock:
+                self.left_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+                self.right_wheel.spin_wheel_continuously(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             time.sleep(0.05)
         self.stop_moving()
 
@@ -195,7 +216,7 @@ class Robot:
 
     # Skip room
     def handle_meeting_room(self):
-        self.turn_until_x_orientation(0)
+        self.turn_x_deg(270)
         self.color_sensing_system.move_sensor_to_right_side()
 
     # Process room and deliver package
@@ -242,9 +263,9 @@ class Robot:
             # Drop package on green sticker if detected
             if self.packages_dropped:
                 current_orientation = self.gyro_sensor.orientation
-                self.turn_until_x_orientation(current_orientation + angle)
+                self.turn_x_deg(angle)
                 self.drop_off_package()
-                self.turn_until_x_orientation(current_orientation)
+                self.turn_x_deg(-angle)
 
                 # Exit sweeping loop
                 break
@@ -330,5 +351,6 @@ class Robot:
             time.sleep(0.01)
         time.sleep(2)
         self.stop_moving()
-        self.turn_until_x_orientation(0)
+        self.turn_x_deg(270)
         self.color_sensing_system.detect_room_exit_flag.clear()
+
