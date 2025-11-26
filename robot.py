@@ -46,7 +46,7 @@ class Robot:
 
         # Turn on first corner
         self.move_straight_until_color("black")
-        self.turn_x_degrees(80)
+        self.turn_x_degrees(90)
 
         # Validate second office and process it if necessary
         self.move_straight_until_color("orange")
@@ -65,14 +65,14 @@ class Robot:
 
         # Turn on second corner
         self.move_straight_until_color("black")
-        self.turn_x_degrees(80)
+        self.turn_x_degrees(90)
 
         # Skip third (invalid) mail
         self.move_straight_until_color("black")
 
         # Turn on third corner
         self.move_straight_until_color("black")
-        self.turn_x_degrees(80)
+        self.turn_x_degrees(90)
 
         # Validate fourth office and process it if necessary
         self.move_straight_until_color("orange")
@@ -126,13 +126,13 @@ class Robot:
 
     # Robot behaviour to process office and return back to initial path
     def process_office(self):
-        self.turn_x_degrees(80)
+        self.turn_x_degrees(90)
         self.visit_office()
         self.exit_office()
-        self.turn_x_degrees(-80)
+        self.turn_x_degrees(-90)
 
     def return_home(self):
-        self.turn_x_degrees(80)
+        self.turn_x_degrees(90)
         self.move_straight_until_color("blue")
         self.stop_robot()
 
