@@ -70,6 +70,8 @@ class ColorSensingSystem:
             str: name of the closest matching color
         """
         r, g, b = rgb
+        if r is None or g is None or b is None:
+            return None
 
         min_distance = float('inf')
         closest_color = None
