@@ -117,7 +117,7 @@ class   ColorSensingSystem:
             with self.color_lock:
                 self.prev_color = self.most_recent_color
                 self.most_recent_color = color
-                if self.prev_color == "black" and color == "black" and self.is_in_hallway:
+                if self.prev_color == "white" and color == "black" and self.is_in_hallway:
                     print("<---------------------turn detected------------------------->")
                     self.detect_hallway_on_right_flag.set()
                 elif color == "red" and self.prev_color=="red" and self.is_handling_room:

@@ -186,7 +186,6 @@ class Robot:
                     self.color_sensing_system.is_handling_room = False
                     self.color_sensing_system.is_in_hallway = True
                     self.gyro_sensor.check_if_moving_straight_on_path = True
-            time.sleep(0.05)
                 
     def stop_moving(self):
         with self.wheel_lock:
