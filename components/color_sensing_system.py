@@ -75,6 +75,9 @@ class   ColorSensingSystem:
         'Black', 'White', 'Red', 'Green', 'Orange', or 'Unknown'.
         """
         rgb = self.color_sensor.get_rgb()  # returns list [R, G, B]
+        if rgb == [None, None, None]:
+            print(f"Detected None as the color, going to use the prev color detected in the meanwhile")
+            return None
         print(f"RGB sensed: {rgb}")
         return self.detect_color_from_rgb(rgb)
 
@@ -110,34 +113,34 @@ class   ColorSensingSystem:
     
     def detect_color_loop(self):
         while not self.stop_sensing_flag.is_set():
-            color = self.detect_color()
-            print(color)
-            if color is None:
-                color = self.prev_color
+            new_color = self.detect_color()
             with self.color_lock:
-                self.prev_color = self.most_recent_color
-                self.most_recent_color = color
-                if self.prev_color == "white" and color == "black" and self.is_in_hallway:
+                if new_color is None:
+                    new_color = self.prev_color
+                else:
+                    self.prev_color = self.most_recent_color
+                    self.most_recent_color = new_color
+                if self.prev_color in ["white", "grey"] and new_color == "black" and self.is_in_hallway:
                     print("<---------------------turn detected------------------------->")
                     self.detect_hallway_on_right_flag.set()
-                elif color == "red" and self.prev_color=="orange" and self.is_handling_room:
+                elif new_color == "red" and self.prev_color=="orange" and self.is_handling_room:
                     print("<----------------------invalid entrance detected------------------------>")
                     self.detect_invalid_entrance_flag.set()
-                elif self.prev_color == "orange" and color == "yellow" and self.is_handling_room:
+                elif self.prev_color == "orange" and new_color == "yellow" and self.is_handling_room:
                     print("<-------------------------valid entrance detected--------------------->")
                     self.detect_valid_entrance_flag.set()
-                elif self.prev_color=="yellow" and color=="orange" and self.is_handling_room:
+                elif self.prev_color=="yellow" and new_color=="orange" and self.is_handling_room:
                     print("<-------------------------exit detected--------------------->")
                     self.detect_room_exit_flag.set()
-                elif self.prev_color=="green" and color == "green" and self.is_handling_room:
+                elif self.prev_color=="orange" and new_color == "green" and self.is_handling_room:
                     self.detect_valid_sticker_flag.set()
                     print("<-------------------------valid sticket detected--------------------->")
-                elif self.prev_color=="orange" and color=="blue" and self.is_handling_room:
+                elif self.prev_color=="orange" and new_color=="blue" and self.is_handling_room:
                     self.detect_entered_home_flag.set()
                     print("<-------------------------home detected--------------------->")
 
-            print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
-            time.sleep(0.1)
+            print(f"Detected Color: {new_color}. Previous Color: {self.prev_color}")
+            time.sleep(0.05)
 
     def start_detecting_color(self):
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
