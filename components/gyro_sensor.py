@@ -3,7 +3,7 @@ from utils.brick import EV3GyroSensor, wait_ready_sensors
 import threading
 
 class GyroSensor:
-    THRESHOLD_FOR_READJUST = 5
+    THRESHOLD_FOR_READJUST = 8  # Increased from 5 to reduce frequent corrections
     def __init__(self, port):
         self.sensor = EV3GyroSensor(port)
         self.orientation = 0

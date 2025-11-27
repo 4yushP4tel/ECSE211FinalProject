@@ -75,9 +75,10 @@ class Robot:
             if self.emergency_flag.is_set():
                 self.emergency_stop()
 
-            # if self.gyro_sensor.readjust_robot_flag.is_set():
-            #    with self.gyro_sensor.orientation_lock:
-            #        self.readjust_alignment()
+            # Check if robot needs realignment while in hallway
+            if self.gyro_sensor.readjust_robot_flag.is_set() and self.color_sensing_system.is_in_hallway:
+                with self.gyro_sensor.orientation_lock:
+                    self.realign_to_zero()
             else:
                 self.move_straight(1)
 
@@ -95,6 +96,8 @@ class Robot:
                 # Right turn into home if all packages delivered
                 if turn_detected == "home_valid" and self.packages_delivered == 2:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
+                    self.color_sensing_system.is_in_hallway = False
+                    self.color_sensing_system.is_handling_room = True
                     self.turn_x_deg(90)
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.head_home()
@@ -110,15 +113,42 @@ class Robot:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.turn_x_deg(90)
                     self.gyro_sensor.check_if_moving_straight_on_path = True
+                    
+                    # Move forward to clear the intersection
+                    self.move_straight(1)
+                    time.sleep(0.5)
+                    self.stop_moving()
 
                 # Right turn into room if not all packages delivered
                 elif turn_detected == "room" and self.packages_delivered != 2:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
+                    self.color_sensing_system.is_in_hallway = False
+                    self.color_sensing_system.is_handling_room = True
                     self.turn_x_deg(90)
                     self.validate_room_entrance()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
 
-    # TODO
+    def realign_to_zero(self):
+        """
+        Simple realignment method: rotate the robot back to 0 degrees orientation.
+        This is called when the robot drifts while moving straight in the hallway.
+        """
+        print(f"Realigning robot from {self.gyro_sensor.orientation} degrees to 0")
+        self.stop_moving()
+        
+        current_orientation = self.gyro_sensor.orientation
+        
+        # Turn back to 0 degrees (negative of current orientation)
+        if abs(current_orientation) > 1:  # Only adjust if more than 1 degree off
+            self.turn_x_deg(-current_orientation)
+        
+        # Clear the flag
+        if self.gyro_sensor.readjust_robot_flag.is_set():
+            self.gyro_sensor.readjust_robot_flag.clear()
+        
+        print("Realignment complete")
+    
+    # TODO - Alternative readjustment using differential wheel speeds
     def readjust_alignment(self):
         # this would take info from the US sensor to check the distance from
         # the right wall and readjust if the distance is too large or small
@@ -216,6 +246,15 @@ class Robot:
         self.stop_moving()
         self.turn_x_deg(270)
         self.color_sensing_system.move_sensor_to_right_side()
+        
+        # Reset state flags back to hallway mode
+        self.color_sensing_system.is_handling_room = False
+        self.color_sensing_system.is_in_hallway = True
+        
+        # Move forward to clear the intersection and prevent re-detection
+        self.move_straight(1)
+        time.sleep(0.5)
+        self.stop_moving()
 
     # Process room and deliver package
     def handle_non_meeting_room(self):
@@ -351,4 +390,13 @@ class Robot:
         self.stop_moving()
         self.turn_x_deg(270)
         self.color_sensing_system.detect_room_exit_flag.clear()
+        
+        # Reset state flags back to hallway mode
+        self.color_sensing_system.is_handling_room = False
+        self.color_sensing_system.is_in_hallway = True
+        
+        # Move forward to clear the intersection and prevent re-detection
+        self.move_straight(1)
+        time.sleep(0.5)
+        self.stop_moving()
 
