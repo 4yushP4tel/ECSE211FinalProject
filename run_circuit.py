@@ -8,14 +8,16 @@ def main():
     reset_brick()
     robot = Robot()
     robot.main()
+    #robot.drop_off_package()
+    #robot.drop_off_package()
+    #robot.turn_x_deg(270)
     #robot.turn_right_90()
     #robot.color_sensing_system.move_sensor_to_front()
     #time.sleep(10)
     #time.sleep(10)
+    reset_brick()
     
 
-    
-    
 if __name__ == "__main__":
     
     try:
