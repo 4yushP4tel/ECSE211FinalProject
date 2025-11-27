@@ -28,15 +28,14 @@ class ColorSensingSystem:
         self.stop_sensing_flag = threading.Event()
         self.detect_hallway_on_right_flag = threading.Event()
         self.detect_invalid_entrance_flag = threading.Event()
-        self.detect_valid_entrance_flag = threading.Event()
         self.detect_valid_sticker_flag = threading.Event()
         self.detect_room_exit_flag = threading.Event()
         self.detect_entered_home_flag = threading.Event()
-        self.detect_room = threading.Event()
-        self.detect_room_end = threading.Event()
         self.color_lock = threading.Lock()
         self.motor.reset_encoder()
         self.motor.set_limits(power=25)
+        self.is_in_hallway = True
+        self.is_handling_room = False
 
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
@@ -97,17 +96,22 @@ class ColorSensingSystem:
                 with self.color_lock:
                     self.prev_color = self.most_recent_color
                     self.most_recent_color = color
-                    if self.prev_color in ["white", "grey"] and color == "black":
+                    if self.prev_color in ["white", "grey"] and color == "black" and self.is_in_hallway:
+                        print("<---------------------turn detected------------------------->")
                         self.detect_hallway_on_right_flag.set()
-                    elif self.prev_color == "orange" and color == "red":
+                    elif self.prev_color == "orange" and color == "red" and self.is_handling_room:
+                        print("<----------------------invalid entrance detected------------------------>")
                         self.detect_invalid_entrance_flag.set()
-                    elif self.prev_color == "yellow" and color == "orange":
+                    elif self.prev_color == "yellow" and color == "orange" and self.is_handling_room:
                         self.detect_room_exit_flag.set()
-                    elif self.prev_color == "yellow" and color == "green":
+                        print("<-------------------------exit detected--------------------->")
+                    elif self.prev_color == "yellow" and color == "green" and self.is_handling_room:
                         if self.detect_color() == "green":
                             self.detect_valid_sticker_flag.set()
-                    elif self.prev_color == "orange" and color == "blue":
+                            print("<-------------------------valid sticket detected--------------------->")
+                    elif self.prev_color == "orange" and color == "blue" and self.is_handling_room:
                         self.detect_entered_home_flag.set()
+                        print("<-------------------------home detected--------------------->")
 
             #print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
             time.sleep(0.05)

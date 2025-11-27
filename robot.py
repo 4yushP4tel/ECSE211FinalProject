@@ -39,7 +39,6 @@ class Robot:
         self.gyro_sensor = GyroSensor(4)
         self.color_sensing_system = ColorSensingSystem(3, 'D')
         self.emergency_touch_sensor = TouchSensor(1)
-        self.counter_lock = threading.Lock()
         wait_ready_sensors()
         time.sleep(1)  # give some time to stabilize sensors
 
@@ -89,10 +88,9 @@ class Robot:
                 time.sleep(0.5)
                 self.stop_moving()
                 
-                with self.counter_lock:
-                    turn_detected = RIGHT_TURNS[int(self.right_turns_passed)]
-                    self.right_turns_passed += 0.5
-                    print(f"<-----------------Turn detected: {turn_detected}----------------------->")
+                turn_detected = RIGHT_TURNS[int(self.right_turns_passed)]
+                self.right_turns_passed +=1
+                print(f"<-----------------Turn detected in main loop: {turn_detected}----------------------->")
 
                 # Right turn into home if all packages delivered
                 if turn_detected == "home_valid" and self.packages_delivered == 2:
@@ -258,7 +256,7 @@ class Robot:
             self.color_sensing_system.motor.set_limits(dps=90)
             self.color_sensing_system.motor.set_position(0)
             self.color_sensing_system.motor.wait_is_stopped()
-            time.sleep(3)
+            time.sleep(2)
 
             # Drop package on green sticker if detected
             if self.packages_dropped:
