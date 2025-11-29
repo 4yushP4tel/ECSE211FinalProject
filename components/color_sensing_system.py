@@ -5,13 +5,17 @@ from utils.brick import EV3ColorSensor, Motor
 
 # RGB reference data (normalized)
 color_data = {
-    'orange': [193.73333333333332, 90.4, 33.2],
-    'yellow': [231.33333333333334, 187.53333333333333, 47.0],
-    'white': [139.8, 130.06666666666666, 191.46666666666667],
-    'green': [108.8, 158.53333333333333, 45.13333333333333],
-    'red': [145.13333333333333, 18.6, 26.866666666666667],
-    'black': [25.733333333333334, 26.8, 28.933333333333334],
-    'blue': [144.0, 209.66666666666666, 295.6666666666667],
+    'orange': [86.0, 37.333333333333336, 16.866666666666667],
+    'orange_front':[155.33333333333334, 70.4, 23.6],
+    'yellow': [100.2, 73.73333333333333, 23.4],
+    'yellow_front': [187.4, 149.8, 40.733333333333334],
+    'white': [115.26666666666667, 106.6, 156.06666666666666],
+    'green': [47.53333333333333, 64.13333333333334, 21.666666666666668],
+    'green_front': [88.06666666666666, 131.26666666666668, 37.333333333333336],
+    'red': [75.8, 12.866666666666667, 15.533333333333333],
+    'red_front': [116.33333333333333, 16.2, 20.4],
+    'black': [41.0, 27.133333333333333, 45.666666666666664],
+    'blue': [109.93333333333334, 155.06666666666666, 233.0],
     'grey': [117.73333333333333, 111.53333333333333, 161.86666666666667]
 }
 
@@ -36,6 +40,7 @@ class ColorSensingSystem:
         self.motor.set_limits(power=25)
         self.is_in_hallway = True
         self.is_handling_room = False
+        self.is_heading_home = False
 
     def move_sensor_to_front(self):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
@@ -52,7 +57,7 @@ class ColorSensingSystem:
         # Verify position and correct if needed
         current_pos = self.motor.get_position()
         if abs(current_pos - ColorSensingSystem.FRONT_POSITION) > 5:
-            print(f"Color sensor position off by {current_pos - ColorSensingSystem.FRONT_POSITION} degrees, correcting...")
+            #print(f"Color sensor position off by {current_pos - ColorSensingSystem.FRONT_POSITION} degrees, correcting...")
             self.motor.set_position(ColorSensingSystem.FRONT_POSITION)
             self.motor.wait_is_stopped()
             time.sleep(0.3)
@@ -71,8 +76,8 @@ class ColorSensingSystem:
         
         # Verify position and correct if needed
         current_pos = self.motor.get_position()
-        if abs(current_pos) > 5:
-            print(f"Color sensor position off by {current_pos} degrees, correcting...")
+        if abs(current_pos) > 1:
+            #print(f"Color sensor position off by {current_pos} degrees, correcting...")
             self.motor.set_position(0)
             self.motor.wait_is_stopped()
             time.sleep(0.3)
@@ -83,7 +88,7 @@ class ColorSensingSystem:
         'Black', 'White', 'Red', 'Green', 'Orange', or 'Unknown'.
         """
         rgb = self.color_sensor.get_rgb()  # returns list [R, G, B]
-        print(f"RGB sensed: {rgb}")
+        #print(f"RGB sensed: {rgb}")
         return self.detect_color_from_rgb(rgb)
 
     def detect_color_from_rgb(self, rgb):
@@ -115,38 +120,42 @@ class ColorSensingSystem:
             if distance < min_distance:
                 min_distance = distance
                 closest_color = color_name
-
+        print(f"Closest color: {closest_color}")
+        if closest_color.endswith('_front'):
+            closest_color = closest_color[:-6]
         return closest_color
 
     def detect_color_loop(self):
         while not self.stop_sensing_flag.is_set():
             color = self.detect_color()
-            print(f"COLOR: {color}")
+            #print(f"COLOR: {color}")
             if color is not None:
                 with self.color_lock:
                     self.prev_color = self.most_recent_color
                     self.most_recent_color = color
                     if self.prev_color in {"white", "grey", "yellow", "red", "orange", "blue", "green"} and color == "black" and self.is_in_hallway:
-                        print("<---------------------turn detected------------------------->")
+                        if self.detect_color() == "black":
+                            print("<---------------------turn detected------------------------->")
                         
-                        self.detect_hallway_on_right_flag.set()
+                            self.detect_hallway_on_right_flag.set()
                     elif self.prev_color == "orange" and color == "red" and self.is_handling_room:
                         if self.detect_color() == "red":
                             print("<----------------------invalid entrance detected------------------------>")
                             self.detect_invalid_entrance_flag.set()
                     elif self.prev_color == "yellow" and color == "orange" and self.is_handling_room:
-                        self.detect_room_exit_flag.set()
-                        print("<-------------------------exit detected--------------------->")
+                        if self.detect_color() == "orange":
+                            self.detect_room_exit_flag.set()
+                            print("<-------------------------exit detected--------------------->")
                     elif self.prev_color == "yellow" and color == "green" and self.is_handling_room:
                         if self.detect_color() == "green":
                             self.detect_valid_sticker_flag.set()
                             print("<-------------------------valid sticket detected--------------------->")
-                    elif self.prev_color == "orange" and color == "blue" and self.is_handling_room:
+                    elif self.prev_color == "orange" and color == "orange" and self.is_heading_home:
                         self.detect_entered_home_flag.set()
                         print("<-------------------------home detected--------------------->")
 
             #print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
-            time.sleep(0.05)
+            time.sleep(0.08)
 
     def start_detecting_color(self):
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
