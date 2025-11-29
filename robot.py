@@ -57,7 +57,7 @@ class Robot:
         self.speaker = Speaker()
         self.gyro_sensor = GyroSensor(4)
         self.color_sensing_system = ColorSensingSystem(3, 'D')
-        self.emergency_touch_sensor = TouchSensor(1)
+        self.emergency_touch_sensor = TouchSensor(2)
         wait_ready_sensors()
         time.sleep(1)  # give some time to stabilize sensors
 
@@ -89,6 +89,35 @@ class Robot:
 
     # Main robot logic for the delivery, written for potential reusability for more complex mappings
     def start_delivery(self):
+        # Soft-start to prevent initial twitching
+        #print("Starting with soft-start to prevent twitching...")
+        #normal_power_left = Robot.FORWARD_MOVEMENT_POWER_LEFT
+        #normal_power_right = Robot.FORWARD_MOVEMENT_POWER_RIGHT
+        
+        # Set low initial power
+        #Robot.FORWARD_MOVEMENT_POWER_LEFT = 12
+        #Robot.FORWARD_MOVEMENT_POWER_RIGHT = 13
+        #self.move_straight(1)
+        
+        # Wait for 3 seconds but check for realignment during soft-start
+        #start_time = time.time()
+        #while time.time() - start_time < 3:
+        #    if self.emergency_flag.is_set():
+        #        self.emergency_stop()
+        #    
+        #    # Check if robot needs realignment even during soft-start
+        #    if self.gyro_sensor.readjust_robot_flag.is_set() and self.color_sensing_system.is_in_hallway:
+        #        self.stop_moving()
+        #        self.realign_to_zero()
+        #        self.move_straight(1)  # Resume moving after realignment
+            
+        #    time.sleep(0.05)
+        
+        # Restore normal power
+        #Robot.FORWARD_MOVEMENT_POWER_LEFT = normal_power_left
+        #Robot.FORWARD_MOVEMENT_POWER_RIGHT = normal_power_right
+        #print("Soft-start complete, resuming normal speed")
+        
         while True:
             # print(self.right_turns_passed, RIGHT_TURNS[int(self.right_turns_passed)])
             if self.emergency_flag.is_set():
@@ -165,15 +194,21 @@ class Robot:
         self.gyro_sensor.reset_orientation()
         
         # Turn back to 0 degrees (negative of current orientation)
-        if abs(current_orientation) > THRESHOLD_FOR_READJUST:  # Only adjust if more than 1 degree off
-            self.turn_x_deg(-current_orientation)
+        if abs(current_orientation) > THRESHOLD_FOR_READJUST - 1:
+            self.turn_x_deg(-current_orientation)        
+        # Adjust power to compensate for drift
+        if current_orientation < 0:  # Drifting left - right side stronger
+            Robot.FORWARD_MOVEMENT_POWER_LEFT += 0.1
+            Robot.FORWARD_MOVEMENT_POWER_RIGHT -= 0.1
+            self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
+        else:  # Drifting right - left side stronger
+            Robot.FORWARD_MOVEMENT_POWER_RIGHT += 0.1
+            Robot.FORWARD_MOVEMENT_POWER_LEFT -= 0.1
+            self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
         
-        if current_orientation < 0:
-            self.FORWARD_MOVEMENT_POWER_LEFT += 0.1
-        else:
-            self.FORWARD_MOVEMENT_POWER_RIGHT += 0.1
         # Clear the flag
-        
         if self.gyro_sensor.readjust_robot_flag.is_set():
             self.gyro_sensor.readjust_robot_flag.clear()
         
@@ -215,23 +250,23 @@ class Robot:
         print(f"Turn {angle} degrees (+ right, - left)")
         threshold_reached = False
         if angle > 0:
-            self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.8)
-            self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.8)
+            self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             while self.gyro_sensor.orientation < angle:
-                if not threshold_reached and self.gyro_sensor.orientation > angle - 45:
-                    self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.5)
-                    self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.5)
+                if not threshold_reached and self.gyro_sensor.orientation > angle - 20:
+                    self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.4)
+                    self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.4)
                     treshold_reached = True
                 if self.emergency_flag.is_set():
                     self.emergency_stop()
                 time.sleep(0.01)
         elif angle < 0:
-            self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.8)
-            self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.8)
+            self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT)
+            self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             while self.gyro_sensor.orientation > angle:
-                if not threshold_reached and self.gyro_sensor.orientation < angle + 45:
-                    self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.5)
-                    self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.5)
+                if not threshold_reached and self.gyro_sensor.orientation < angle + 20:
+                    self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.4)
+                    self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.4)
                     treshold_reached = True
                 if self.emergency_flag.is_set():
                     self.emergency_stop()
@@ -265,7 +300,20 @@ class Robot:
         self.color_sensing_system.move_sensor_to_front()
         time.sleep(0.5)
         self.move_straight(1)
-        time.sleep(0.65)
+        
+        # Move forward while checking for realignment
+        start_time = time.time()
+        while time.time() - start_time < 0.65:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
+            
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                self.stop_moving()
+                self.realign_to_zero()
+                self.move_straight(1)  # Resume moving after realignment
+            
+            time.sleep(0.05)
+        
         self.stop_moving()
         print("CHECKING DETECT_INVALID_ENTRANCE_FLAG")
         if self.color_sensing_system.detect_invalid_entrance_flag.is_set():
@@ -281,9 +329,36 @@ class Robot:
 
     # Skip room
     def handle_meeting_room(self):
+        # Color sensor is already at front from validate_room_entrance
         self.move_straight(-1)
-        time.sleep(0.5)
+        
+        # Count consecutive orange detections to exit room
+        orange_count = 0
+        while orange_count < 2:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
+            
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                self.stop_moving()
+                self.realign_to_zero()
+                self.move_straight(-1)  # Resume moving backward after realignment
+            
+            # Check current color
+            with self.color_sensing_system.color_lock:
+                current_color = self.color_sensing_system.most_recent_color
+            
+            if current_color == "orange":
+                orange_count += 1
+                print(f"Orange detected ({orange_count}/2)")
+                time.sleep(0.1)  # Small delay to avoid counting same detection multiple times
+            else:
+                orange_count = 0  # Reset if non-orange detected
+            
+            time.sleep(0.05)
+        
         self.stop_moving()
+        print("Exited meeting room - detected orange twice")
+        
         self.turn_x_deg(270-self.gyro_sensor.get_orientation())
         self.color_sensing_system.move_sensor_to_right_side()
         
@@ -293,18 +368,31 @@ class Robot:
         
         # Move forward to clear the intersection and prevent re-detection
         self.move_straight(1)
-        time.sleep(0.5)
+        
+        start_time = time.time()
+        while time.time() - start_time < 0.5:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
+            
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                self.stop_moving()
+                self.realign_to_zero()
+                self.move_straight(1)  # Resume moving forward after realignment
+            
+            time.sleep(0.05)
+        
         self.stop_moving()
 
     # Process room and deliver package
     def handle_non_meeting_room(self):
-        for i in range(7):  # check this out if this actually works
+        for i in range(5):  # check this out if this actually works
             if self.emergency_flag.is_set():
                 self.emergency_stop()
 
             # Advance a little to cover the next area of the office
             self.move_straight(1)
-            time.sleep(0.7)
+            time.sleep(0.8)
+            
             self.stop_moving()
 
             # Sweep across the width of the office
@@ -336,6 +424,19 @@ class Robot:
             self.color_sensing_system.motor.set_position(0)
             self.color_sensing_system.motor.wait_is_stopped()
             time.sleep(2)
+                        
+            # Move forward while checking for realignment
+            start_time = time.time()
+            while time.time() - start_time < 0.7:
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                
+                if self.gyro_sensor.readjust_robot_flag.is_set():
+                    self.stop_moving()
+                    self.realign_to_zero()
+                    self.move_straight(1)  # Resume moving after realignment
+                
+                time.sleep(0.05)
 
             # Drop package on green sticker if detected
             if self.packages_dropped:
@@ -346,6 +447,8 @@ class Robot:
 
                 # Exit sweeping loop
                 break
+            
+            
 
         self.return_to_hallway_after_delivery()
 
@@ -356,6 +459,8 @@ class Robot:
         self.color_sensing_system.move_sensor_to_front()
 
         while not self.color_sensing_system.detect_entered_home_flag.is_set():
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
 
             if self.gyro_sensor.readjust_robot_flag.is_set():
                 with self.gyro_sensor.orientation_lock:
@@ -422,14 +527,40 @@ class Robot:
         self.packages_delivered += 1
 
     def return_to_hallway_after_delivery(self):
-        self.color_sensing_system.move_sensor_to_right_side()
+        # Move color sensor to front to detect orange tape
+        self.color_sensing_system.move_sensor_to_front()
         self.move_straight(-1)
-        while not self.color_sensing_system.detect_room_exit_flag.is_set():
-            time.sleep(0.01)
-        time.sleep(2)
+        
+        # Count consecutive orange detections
+        orange_count = 0
+        while orange_count < 2:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
+            
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                self.stop_moving()
+                self.realign_to_zero()
+                self.move_straight(-1)  # Resume moving backward after realignment
+            
+            # Check current color
+            with self.color_sensing_system.color_lock:
+                current_color = self.color_sensing_system.most_recent_color
+            
+            if current_color == "orange":
+                orange_count += 1
+                print(f"Orange detected ({orange_count}/2)")
+                time.sleep(0.1)  # Small delay to avoid counting same detection multiple times
+            else:
+                orange_count = 0  # Reset if non-orange detected
+            
+            time.sleep(0.05)
+        
         self.stop_moving()
+        print("Exited room - detected orange twice")
+        
+        # Turn back to hallway
         self.turn_x_deg(270)
-        self.color_sensing_system.detect_room_exit_flag.clear()
+        self.color_sensing_system.move_sensor_to_right_side()
         
         # Reset state flags back to hallway mode
         self.color_sensing_system.is_handling_room = False
@@ -437,6 +568,18 @@ class Robot:
         
         # Move forward to clear the intersection and prevent re-detection
         self.move_straight(1)
-        time.sleep(0.5)
+        
+        start_time = time.time()
+        while time.time() - start_time < 0.5:
+            if self.emergency_flag.is_set():
+                self.emergency_stop()
+            
+            if self.gyro_sensor.readjust_robot_flag.is_set():
+                self.stop_moving()
+                self.realign_to_zero()
+                self.move_straight(1)  # Resume moving forward after realignment
+            
+            time.sleep(0.05)
+        
         self.stop_moving()
 

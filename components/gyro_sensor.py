@@ -30,6 +30,7 @@ class GyroSensor:
     
     def get_orientation(self):
         orientation = self.sensor.get_abs_measure()
+        print(f"Current orientation: {orientation}")
         return orientation
     
     def monitor_orientation_loop(self):
