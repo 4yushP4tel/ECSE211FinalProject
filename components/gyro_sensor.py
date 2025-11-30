@@ -15,7 +15,7 @@ class GyroSensor:
         self.readjust_robot_flag = threading.Event()
         self.check_if_moving_straight_on_path = True
         self.last_readjust_time = 0  # Track last realignment to prevent wobbling
-        self.readjust_cooldown = 2.0  # Seconds to wait before allowing another realignment
+        self.readjust_cooldown = 1.0  # Seconds to wait before allowing another realignment
         self.reset_orientation()
     
     def start_monitoring_orientation(self):

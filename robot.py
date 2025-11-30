@@ -42,8 +42,8 @@ RIGHT_TURNS = [
                ]
 
 class Robot:
-    FORWARD_MOVEMENT_POWER_RIGHT = 28
-    FORWARD_MOVEMENT_POWER_LEFT = 28
+    FORWARD_MOVEMENT_POWER_RIGHT = 22.5
+    FORWARD_MOVEMENT_POWER_LEFT = 22.8
     POWER_FOR_TURN = 15
     EXIT_ROOM_POWER = 10
     
@@ -188,17 +188,23 @@ class Robot:
 
                 # Right turn on corner
                 elif turn_detected == "turn":
+                    self.move_straight_dps(1)
+                    time.sleep(0.05)
+                    self.stop_moving()
                     self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     
                     # Move forward to clear the intersection
                     self.move_straight_dps(1)
-                    time.sleep(0.17)
+                    time.sleep(0.25)
                     self.stop_moving()
 
                 # Right turn into room if not all packages delivered
                 elif turn_detected == "room" and self.packages_delivered != 2:
+                    self.move_straight_dps(1)
+                    time.sleep(0.2)
+                    self.stop_moving()
                     self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.color_sensing_system.is_in_hallway = False
                     self.color_sensing_system.is_handling_room = True
@@ -226,7 +232,8 @@ class Robot:
             self.gyro_sensor.readjust_robot_flag.clear()
         
         # Turn directly to 0° (absolute) without resetting
-        self.turn_to_orientation(0)
+        # Use DPS version for consistency with other movements
+        self.turn_to_orientation_dps(0)
         
         print("Realignment complete")
 
@@ -291,8 +298,8 @@ class Robot:
             self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             while self.gyro_sensor.orientation < target_orientation:
                 if not threshold_reached and self.gyro_sensor.orientation > target_orientation - 20:
-                    self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.4)
-                    self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.4)
+                    self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.6)
+                    self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.6)
                     threshold_reached = True
                 if self.emergency_flag.is_set():
                     self.emergency_stop()
@@ -302,8 +309,8 @@ class Robot:
             self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             while self.gyro_sensor.orientation > target_orientation:
                 if not threshold_reached and self.gyro_sensor.orientation < target_orientation + 20:
-                    self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.4)
-                    self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.4)
+                    self.left_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.6)
+                    self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.6)
                     threshold_reached = True
                 if self.emergency_flag.is_set():
                     self.emergency_stop()
@@ -483,6 +490,7 @@ class Robot:
             time.sleep(0.05)
         
         self.stop_moving()
+        time.sleep(1)
         print("CHECKING DETECT_INVALID_ENTRANCE_FLAG")
         if self.color_sensing_system.detect_invalid_entrance_flag.is_set():
             self.color_sensing_system.detect_invalid_entrance_flag.clear()
@@ -503,6 +511,7 @@ class Robot:
         # Reduce cooldown for more frequent realignment when backing up (less consistent)
         self.gyro_sensor.set_readjust_cooldown(0.5)
         self.move_straight_dps(-1)
+        print("EXITING INVALID ROOM")
         
         # Count consecutive orange detections to exit room
         # The 0° reference is maintained from turn_x_deg reset at room entry
