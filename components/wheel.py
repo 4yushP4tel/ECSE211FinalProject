@@ -11,6 +11,13 @@ class Wheel:
 
     def spin_wheel_continuously(self, power:int):
         self.motor.set_power(power)
+    
+    def spin_wheel_at_dps(self, dps: int):
+        """Spin wheel at a specific speed in degrees per second (closed-loop control)"""
+        self.motor.set_dps(dps)
+        actual_speed = self.motor.get_speed()
+        print(f"Port: {self.motor.port}. Set DPS: {dps}, actual speed: {actual_speed}")
 
     def stop_spinning(self):
-        self.motor.set_power(0)
+        """Stop the wheel (works for both power and DPS control)"""
+        self.motor.set_dps(0)  # Stop using DPS (cleaner than set_power for DPS-controlled motors)

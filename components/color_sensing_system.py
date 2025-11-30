@@ -35,11 +35,13 @@ class ColorSensingSystem:
         self.detect_valid_sticker_flag = threading.Event()
         self.detect_room_exit_flag = threading.Event()
         self.detect_entered_home_flag = threading.Event()
+        self.sensor_failed_flag = threading.Event()
         self.color_lock = threading.Lock()
         self.motor.reset_encoder()
         self.motor.set_limits(power=25)
         self.is_in_hallway = True
         self.is_handling_room = False
+        self.consecutive_none_count = 0
         self.is_heading_home = False
 
     def move_sensor_to_front(self):
@@ -129,6 +131,22 @@ class ColorSensingSystem:
         while not self.stop_sensing_flag.is_set():
             color = self.detect_color()
             #print(f"COLOR: {color}")
+            
+            # Track consecutive None readings for sensor failure detection
+            if color is None:
+                self.consecutive_none_count += 1
+                if self.consecutive_none_count >= 3:
+                    if not self.sensor_failed_flag.is_set():
+                        print("WARNING: Color sensor failed! Waiting for recovery...")
+                        self.sensor_failed_flag.set()
+            else:
+                # Sensor recovered
+                if self.consecutive_none_count >= 3:
+                    print("Color sensor recovered!")
+                self.consecutive_none_count = 0
+                if self.sensor_failed_flag.is_set():
+                    self.sensor_failed_flag.clear()
+            
             if color is not None:
                 with self.color_lock:
                     self.prev_color = self.most_recent_color

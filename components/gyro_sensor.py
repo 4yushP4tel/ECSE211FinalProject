@@ -14,6 +14,8 @@ class GyroSensor:
         self.stop_orientation_monitoring_flag = threading.Event()
         self.readjust_robot_flag = threading.Event()
         self.check_if_moving_straight_on_path = True
+        self.last_readjust_time = 0  # Track last realignment to prevent wobbling
+        self.readjust_cooldown = 2.0  # Seconds to wait before allowing another realignment
         self.reset_orientation()
     
     def start_monitoring_orientation(self):
@@ -40,13 +42,33 @@ class GyroSensor:
             if self.orientation is None:
                 time.sleep(0.01)
                 continue
-            if (self.orientation is not None and (self.orientation > THRESHOLD_FOR_READJUST
-            or self.orientation < -(THRESHOLD_FOR_READJUST))
-            ):
-                print(f"readjustment needed, the orientation is: {self.orientation}")
-                self.readjust_robot_flag.set()
+            
+            # Check if readjustment is needed and cooldown period has passed
+            if (self.orientation is not None and 
+                (self.orientation > THRESHOLD_FOR_READJUST or self.orientation < -(THRESHOLD_FOR_READJUST))):
+                
+                # Only trigger if enough time has passed since last realignment (prevent wobbling)
+                time_since_last = time.time() - self.last_readjust_time
+                if time_since_last >= self.readjust_cooldown:
+                    print(f"readjustment needed, the orientation is: {self.orientation}")
+                    self.readjust_robot_flag.set()
+                else:
+                    # Still in cooldown period
+                    pass
+            
             time.sleep(0.01)
 
+    def set_readjust_cooldown(self, cooldown_seconds):
+        """
+        Temporarily change the realignment cooldown period.
+        Useful for situations that need more/less frequent realignment.
+        
+        Args:
+            cooldown_seconds: Time in seconds between realignment triggers
+        """
+        self.readjust_cooldown = cooldown_seconds
+        print(f"Realignment cooldown set to {cooldown_seconds}s")
+    
     def reset_orientation(self):
         #this should be done when the robot is turning into some room some
         
