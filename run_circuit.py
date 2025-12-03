@@ -8,7 +8,6 @@ def main():
     robot = Robot()
     robot.main()
     #robot.move_straight_time(1, 3)
-
     
     #robot.drop_off_package()
     #robot.drop_off_package()

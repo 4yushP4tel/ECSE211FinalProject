@@ -9,19 +9,6 @@ from utils.brick import TouchSensor, reset_brick, wait_ready_sensors
 import threading
 
 # Map of right turns in the delivery
-RIGHT_TURNS_OLD = ["room",
-               "home_invalid",
-               "turn",
-               "room",
-               "home_valid",
-               "room",
-               "turn",
-               "home_invalid",
-               "turn",
-               "room",
-               "home_valid"]
-
-
 RIGHT_TURNS = [
                "home_invalid",
                "turn", 
@@ -90,36 +77,7 @@ class Robot:
 
     # Main robot logic for the delivery, written for potential reusability for more complex mappings
     def start_delivery(self):
-        # Soft-start to prevent initial twitching
-        #print("Starting with soft-start to prevent twitching...")
-        #normal_power_left = Robot.FORWARD_MOVEMENT_POWER_LEFT
-        #normal_power_right = Robot.FORWARD_MOVEMENT_POWER_RIGHT
-        
-        # Set low initial power
-        #Robot.FORWARD_MOVEMENT_POWER_LEFT = 12
-        #Robot.FORWARD_MOVEMENT_POWER_RIGHT = 13
-        #self.move_straight(1)
-        
-        # Wait for 3 seconds but check for realignment during soft-start
-        #start_time = time.time()
-        #while time.time() - start_time < 3:
-        #    if self.emergency_flag.is_set():
-        #        self.emergency_stop()
-        #    
-        #    # Check if robot needs realignment even during soft-start
-        #    if self.gyro_sensor.readjust_robot_flag.is_set() and self.color_sensing_system.is_in_hallway:
-        #        self.stop_moving()
-        #        self.realign_to_zero()
-        #        self.move_straight(1)  # Resume moving after realignment
-            
-        #    time.sleep(0.05)
-        
-        # Restore normal power
-        #Robot.FORWARD_MOVEMENT_POWER_LEFT = normal_power_left
-        #Robot.FORWARD_MOVEMENT_POWER_RIGHT = normal_power_right
-        #print("Soft-start complete, resuming normal speed")
         while True:
-            # print(self.right_turns_passed, RIGHT_TURNS[int(self.right_turns_passed)])
             if self.emergency_flag.is_set():
                 self.emergency_stop()
 
@@ -156,35 +114,9 @@ class Robot:
                 turn_detected = RIGHT_TURNS[int(self.right_turns_passed)]
                 self.right_turns_passed +=1
                 print(f"<-----------------Turn detected in main loop: {turn_detected}----------------------->")
-
-                # Right turn into home if all packages delivered
-                if turn_detected == "home_valid" and self.packages_delivered == 2:
-                    print("HEADING HOME LLLLLLLLLLLLLLLLLLLLLLLLLLL")
-                    self.gyro_sensor.check_if_moving_straight_on_path = False
-                    self.color_sensing_system.is_in_hallway = False
-                    self.color_sensing_system.is_handling_room = True
-                    self.color_sensing_system.is_heading_home = True
-                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
-                    
-                    # Fine-tune alignment after turn
-                    time.sleep(0.2)
-                    current_orientation = self.gyro_sensor.orientation
-                    if abs(current_orientation) > 1:
-                        print(f"Fine-tuning orientation from {current_orientation} to 0")
-                        self.turn_x_deg(-current_orientation)
-                    
-                    self.gyro_sensor.check_if_moving_straight_on_path = True
-                    self.head_home()
-                    break
-
-                # Skip right turn due to invalid home
-                elif turn_detected == "home_invalid":
-                    # time.sleep(0.2)
-                    print("Robot: Home invalid")
-            
-
+        
                 # Right turn on corner
-                elif turn_detected == "turn":
+                if turn_detected == "turn":
                     self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.realign_to_zero()
                     self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
@@ -200,7 +132,7 @@ class Robot:
                 elif turn_detected == "room" and self.packages_delivered != 2:
                     self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.color_sensing_system.is_in_hallway = False
-                    self.color_sensing_system.is_handling_room = True
+                    # self.color_sensing_system.is_handling_room = True
                     
                     # go straight to align to center of intersection
                     self.move_straight(1)
@@ -213,6 +145,27 @@ class Robot:
                     # process room
                     self.validate_room_entrance()
                     self.gyro_sensor.check_if_moving_straight_on_path = True
+
+                # Head home if all packages delivered
+                elif turn_detected == "home_valid" and self.packages_delivered == 2:
+                    print("HEADING HOME LLLLLLLLLLLLLLLLLLLLLLLLLLL")
+                    self.gyro_sensor.check_if_moving_straight_on_path = False
+                    self.color_sensing_system.is_in_hallway = False
+                    # self.color_sensing_system.is_handling_room = True
+                    self.color_sensing_system.is_heading_home = True
+                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
+                    
+                    # Fine-tune alignment after turn
+                    time.sleep(0.2)
+                    current_orientation = self.gyro_sensor.orientation
+                    if abs(current_orientation) > 1:
+                        print(f"Fine-tuning orientation from {current_orientation} to 0")
+                        self.turn_x_deg(-current_orientation)
+                    
+                    self.gyro_sensor.check_if_moving_straight_on_path = True
+                    self.head_home()
+                    break
+
                     
                 self.color_sensing_system.detect_hallway_on_right_flag.clear()
 
@@ -251,9 +204,11 @@ class Robot:
         
         threshold_reached = False
         if current < target_orientation:  # Need to turn right
+            # Set power to wheels for turning right
             self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
             self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT)
             while self.gyro_sensor.orientation < target_orientation:
+                # When the robot is close to the target orientation, slow down to prevent overshooting
                 if not threshold_reached and self.gyro_sensor.orientation > target_orientation - 20:
                     self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT * 0.4)
                     self.right_wheel.motor.set_power(-Robot.FORWARD_MOVEMENT_POWER_RIGHT * 0.4)
@@ -466,7 +421,7 @@ class Robot:
         self.color_sensing_system.move_sensor_to_right_side()
         
         # Reset state flags back to hallway mode
-        self.color_sensing_system.is_handling_room = False
+        # self.color_sensing_system.is_handling_room = False
         self.color_sensing_system.is_in_hallway = True
         
         # Move forward to clear the intersection and prevent re-detection
@@ -621,7 +576,7 @@ class Robot:
                 self.emergency_stop()
                 self.emergency_flag.clear()
                 break
-            time.sleep(0.05)
+            time.sleep(1)
 
     def emergency_stop(self):
         self.stop_moving()
@@ -717,7 +672,7 @@ class Robot:
         self.color_sensing_system.move_sensor_to_right_side()
         
         # Reset state flags back to hallway mode
-        self.color_sensing_system.is_handling_room = False
+        # self.color_sensing_system.is_handling_room = False
         self.color_sensing_system.is_in_hallway = True
         
         # Move forward to clear the intersection and prevent re-detection
