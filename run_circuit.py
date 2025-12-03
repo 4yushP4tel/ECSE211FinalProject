@@ -6,7 +6,10 @@ import time
 def main():
     # this function should run the entire circuit
     robot = Robot()
-    robot.main()
+
+    
+
+    #robot.main()
     #robot.move_straight_time(1, 3)
     
     #robot.drop_off_package()
