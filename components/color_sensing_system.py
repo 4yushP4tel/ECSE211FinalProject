@@ -5,20 +5,19 @@ from utils.brick import EV3ColorSensor, Motor
 
 # RGB reference data (normalized)
 color_data = {
-    'orange': [86.0, 37.333333333333336, 16.866666666666667],
-    'orange_front':[155.33333333333334, 70.4, 23.6],
-    'yellow': [100.2, 73.73333333333333, 23.4],
-    'yellow_front': [187.4, 149.8, 40.733333333333334],
-    'white': [115.26666666666667, 106.6, 156.06666666666666],
-    'green': [47.53333333333333, 64.13333333333334, 21.666666666666668],
-    'green_front': [88.06666666666666, 131.26666666666668, 37.333333333333336],
-    'red': [75.8, 12.866666666666667, 15.533333333333333],
-    'red_front': [116.33333333333333, 16.2, 20.4],
+    'orange': [81.93333333333334, 40.733333333333334, 8.2],
+    'orange_front':[137.93333333333334, 66.2, 13.133333333333333],
+    'yellow': [97.66666666666667, 81.66666666666667, 12.066666666666666],
+    'yellow_front': [159.13333333333333, 130.2, 18.4],
+    'white': [101.6, 104.06666666666666, 79.66666666666667],
+    'green': [45.266666666666666, 68.0, 10.6],
+    'green_front': [77.93333333333334, 117.26666666666667, 18.133333333333333],
+    'red': [59.46666666666667, 10.866666666666667, 5.6],
+    'red_front': [114.06666666666666, 19.4, 11.6],
     'black': [41.0, 27.133333333333333, 45.666666666666664],
-    'blue': [109.93333333333334, 155.06666666666666, 233.0],
-    'grey': [117.73333333333333, 111.53333333333333, 161.86666666666667]
+    'blue': [96.06666666666666, 135.06666666666666, 119.2],
+    'grey': [104.46666666666667, 109.26666666666667, 78.86666666666666]
 }
-
 
 class ColorSensingSystem:
     FRONT_POSITION = -90
@@ -44,7 +43,7 @@ class ColorSensingSystem:
         self.consecutive_none_count = 0
         self.is_heading_home = False
 
-    def move_sensor_to_front(self):
+    def move_sensor_to_front(self, POSITION = FRONT_POSITION):
         """Moves the sensor to the front of the robot when it tries to enter a room."""
         # Stop any ongoing movement first
         self.motor.set_dps(0)
@@ -52,7 +51,8 @@ class ColorSensingSystem:
         
         # Set position with controlled speed
         self.motor.set_limits(dps=120)
-        self.motor.set_position(ColorSensingSystem.FRONT_POSITION)
+        #self.motor.set_position(ColorSensingSystem.FRONT_POSITION)
+        self.motor.set_position(POSITION)
         self.motor.wait_is_stopped()
         time.sleep(0.5)
         
@@ -139,6 +139,7 @@ class ColorSensingSystem:
                     if not self.sensor_failed_flag.is_set():
                         print("WARNING: Color sensor failed! Waiting for recovery...")
                         self.sensor_failed_flag.set()
+                        
             else:
                 # Sensor recovered
                 if self.consecutive_none_count >= 3:
@@ -151,11 +152,12 @@ class ColorSensingSystem:
                 with self.color_lock:
                     self.prev_color = self.most_recent_color
                     self.most_recent_color = color
-                    if self.prev_color in {"white", "grey", "yellow", "red", "orange", "blue", "green"} and color == "black" and self.is_in_hallway:
-                        if self.detect_color() == "black":
-                            print("<---------------------turn detected------------------------->")
+                    # if self.prev_color in {"white", "grey", "yellow", "red", "orange", "blue", "green"} and color == "black" and self.is_in_hallway:
+                    if self.prev_color == "black" and color == "black" and self.is_in_hallway:
+                        # if self.detect_color() == "black":
+                        print("<---------------------turn detected------------------------->")
                         
-                            self.detect_hallway_on_right_flag.set()
+                        self.detect_hallway_on_right_flag.set()
                     elif self.prev_color == "orange" and color == "red" and self.is_handling_room:
                         if self.detect_color() == "red":
                             print("<----------------------invalid entrance detected------------------------>")
@@ -173,7 +175,7 @@ class ColorSensingSystem:
                         print("<-------------------------home detected--------------------->")
 
             #print(f"Detected Color: {color}. Previous Color: {self.prev_color}")
-            time.sleep(0.08)
+            time.sleep(0.05)
 
     def start_detecting_color(self):
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
@@ -187,4 +189,3 @@ class ColorSensingSystem:
         self.stop_sensing_flag.set()
         if self.color_sensing_thread and self.color_sensing_thread.is_alive():
             self.color_sensing_thread.join()
-

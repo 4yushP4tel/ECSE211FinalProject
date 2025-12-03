@@ -5,9 +5,9 @@ import time
 
 def main():
     # this function should run the entire circuit
-    reset_brick()
     robot = Robot()
     robot.main()
+    #robot.move_straight_time(1, 3)
 
     
     #robot.drop_off_package()
@@ -23,6 +23,7 @@ def main():
 if __name__ == "__main__":
     
     try:
+        reset_brick()
         main()
         #reset_brick()
     except KeyboardInterrupt:
