@@ -96,12 +96,12 @@ class Robot:
             # Check if robot needs realignment while in hallway
             if self.gyro_sensor.readjust_robot_flag.is_set() and self.color_sensing_system.is_in_hallway:
                 self.realign_to_zero()
-                self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
-                self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
-                self.move_straight(1)  # Resume forward movement after realignment in hallway
+                self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)  #& Remove these two set_power lines when using DPS
+                self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)  #& Remove these two set_power lines when using DPS
+                self.move_straight(1)  #& Replace with move_straight_dps(dps)
                 continue # we dont want to run realignment logic followed by turn logic right
             else:
-                self.move_straight(1)
+                self.move_straight(1)  #& Replace with move_straight_dps(dps)
 
             # Turn right on valid intersections and then start moving again
             if self.color_sensing_system.detect_hallway_on_right_flag.is_set():
@@ -119,11 +119,11 @@ class Robot:
                 if turn_detected == "turn":
                     self.gyro_sensor.check_if_moving_straight_on_path = False
                     self.realign_to_zero()
-                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
+                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())  #& Replace with turn_x_deg_dps(90 - self.gyro_sensor.get_orientation(), dps)
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     
                     # Move forward to clear the intersection
-                    self.move_straight(1)
+                    self.move_straight(1)  #& Replace with move_straight_dps(dps)
                     time.sleep(0.1)
                     
                     self.stop_moving()
@@ -135,12 +135,12 @@ class Robot:
                     # self.color_sensing_system.is_handling_room = True
                     
                     # go straight to align to center of intersection
-                    self.move_straight(1)
+                    self.move_straight(1)  #& Replace with move_straight_dps(dps)
                     time.sleep(0.15)
                     self.stop_moving()
                     
                     # turn right with readjustment factor
-                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
+                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())  #& Replace with turn_x_deg_dps(90 - self.gyro_sensor.get_orientation(), dps)
                     
                     # process room
                     self.validate_room_entrance()
@@ -153,14 +153,14 @@ class Robot:
                     self.color_sensing_system.is_in_hallway = False
                     # self.color_sensing_system.is_handling_room = True
                     self.color_sensing_system.is_heading_home = True
-                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())
+                    self.turn_x_deg(90 - self.gyro_sensor.get_orientation())  #& Replace with turn_x_deg_dps(90 - self.gyro_sensor.get_orientation(), dps)
                     
                     # Fine-tune alignment after turn
                     time.sleep(0.2)
                     current_orientation = self.gyro_sensor.orientation
                     if abs(current_orientation) > 1:
                         print(f"Fine-tuning orientation from {current_orientation} to 0")
-                        self.turn_x_deg(-current_orientation)
+                        self.turn_x_deg(-current_orientation)  #& Replace with turn_x_deg_dps(-current_orientation, dps)
                     
                     self.gyro_sensor.check_if_moving_straight_on_path = True
                     self.head_home()
@@ -186,7 +186,7 @@ class Robot:
             self.gyro_sensor.readjust_robot_flag.clear()
         
         # Turn directly to 0° (absolute) without resetting
-        self.turn_to_orientation(0)
+        self.turn_to_orientation(0)  #& Replace with turn_to_orientation_dps(0, dps)
         
         print("Realignment complete")
 
@@ -299,6 +299,113 @@ class Robot:
             # For turns in rooms, don't reset - keep the same zero reference
             print(f"Turn complete. Current orientation: {self.gyro_sensor.orientation} degrees (no reset)")
 
+    def turn_x_deg_dps(self, angle, dps: int = 200, reset_after=True):
+        """
+        Turn the robot by a specified angle using DPS control.
+        
+        Args:
+            angle: Degrees to turn (+ right, - left) RELATIVE to current orientation
+            dps: Speed in degrees per second (default: 200)
+            reset_after: If True, reset orientation to 0 after turn. If False, keep current reference frame.
+        """
+        print(f"Turn {angle} degrees using DPS (+ right, - left)")
+        
+        # Calculate target orientation: current + relative turn amount
+        starting_orientation = self.gyro_sensor.orientation
+        target_orientation = starting_orientation + angle
+        print(f"Starting: {starting_orientation}°, Target: {target_orientation}°")
+        
+        threshold_reached = False
+        if angle > 0:
+            self.left_wheel.move_straight_dps(dps, 1)
+            self.right_wheel.move_straight_dps(dps, -1)
+            while self.gyro_sensor.orientation < target_orientation:
+                if not threshold_reached and self.gyro_sensor.orientation > target_orientation - 20:
+                    self.left_wheel.move_straight_dps(int(dps * 0.47), 1)
+                    self.right_wheel.move_straight_dps(int(dps * 0.47), -1)
+                    threshold_reached = True
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.01)
+        elif angle < 0:
+            self.left_wheel.move_straight_dps(dps, -1)
+            self.right_wheel.move_straight_dps(dps, 1)
+            while self.gyro_sensor.orientation > target_orientation:
+                if not threshold_reached and self.gyro_sensor.orientation < target_orientation + 20:
+                    self.left_wheel.move_straight_dps(int(dps * 0.47), -1)
+                    self.right_wheel.move_straight_dps(int(dps * 0.47), 1)
+                    threshold_reached = True
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.01)
+        else:
+            return
+
+        self.stop_moving()
+        
+        if reset_after:
+            # Wait for gyro to stabilize at exactly the target angle before resetting
+            print(f"Waiting for orientation to stabilize at {target_orientation} degrees...")
+            stable_count = 0
+            tolerance = 1  # degrees
+            required_stable_readings = 3
+            
+            while stable_count < required_stable_readings:
+                current = self.gyro_sensor.orientation
+                if abs(current - target_orientation) <= tolerance:
+                    stable_count += 1
+                else:
+                    stable_count = 0
+                time.sleep(0.05)
+                
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+            
+            print(f"Orientation stabilized at {self.gyro_sensor.orientation} degrees, resetting...")
+            self.gyro_sensor.reset_orientation()
+        else:
+            # For turns in rooms, don't reset - keep the same zero reference
+            print(f"Turn complete. Current orientation: {self.gyro_sensor.orientation} degrees (no reset)")
+
+    def turn_to_orientation_dps(self, target_orientation, dps: int = 200):
+        """
+        Turn to an absolute orientation using DPS control without resetting.
+        Used for realignment to return to 0°.
+        
+        Args:
+            target_orientation: Absolute orientation to turn to (usually 0)
+            dps: Speed in degrees per second (default: 200)
+        """
+        current = self.gyro_sensor.orientation
+        print(f"Turning from {current}° to {target_orientation}° using DPS")
+        
+        threshold_reached = False
+        if current < target_orientation:  # Need to turn right
+            self.left_wheel.move_straight_dps(dps, 1)
+            self.right_wheel.move_straight_dps(dps, -1)
+            while self.gyro_sensor.orientation < target_orientation:
+                if not threshold_reached and self.gyro_sensor.orientation > target_orientation - 20:
+                    self.left_wheel.move_straight_dps(int(dps * 0.4), 1)
+                    self.right_wheel.move_straight_dps(int(dps * 0.4), -1)
+                    threshold_reached = True
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.01)
+        elif current > target_orientation:  # Need to turn left
+            self.left_wheel.move_straight_dps(dps, -1)
+            self.right_wheel.move_straight_dps(dps, 1)
+            while self.gyro_sensor.orientation > target_orientation:
+                if not threshold_reached and self.gyro_sensor.orientation < target_orientation + 20:
+                    self.left_wheel.move_straight_dps(int(dps * 0.4), -1)
+                    self.right_wheel.move_straight_dps(int(dps * 0.4), 1)
+                    threshold_reached = True
+                if self.emergency_flag.is_set():
+                    self.emergency_stop()
+                time.sleep(0.01)
+        
+        self.stop_moving()
+        print(f"Turn complete. Current orientation: {self.gyro_sensor.orientation}°")
+
     # Turn until current orientation of robot reaches desired orientation
     def turn_until_x_orientation(self, angle, power=POWER_FOR_TURN):
         print(f"Turn {angle - self.gyro_sensor.orientation} degrees (+ right, - left)")
@@ -321,7 +428,7 @@ class Robot:
     def validate_room_entrance(self):
         #  move sensor over the red pad
         self.color_sensing_system.move_sensor_to_front(POSITION=-93)
-        self.move_straight(1)
+        self.move_straight(1)  #& Replace with move_straight_dps(dps)
         
         print("CHECKING FOR RED PAD")
         time.sleep(0.6)
@@ -357,7 +464,7 @@ class Robot:
         else:
             print("detected valid entrance")
             self.color_sensing_system.move_sensor_to_right_side()
-            self.move_straight(1)
+            self.move_straight(1)  #& Replace with move_straight_dps(dps)
             time.sleep(0.5)
             self.stop_moving()
             self.realign_to_zero()
@@ -378,7 +485,7 @@ class Robot:
     # Skip room
     def handle_meeting_room(self):
         # Color sensor is already at front from validate_room_entrance
-        self.move_straight(-1)
+        self.move_straight(-1)  #& Replace with move_straight_dps(dps, -1)
         
         # Count consecutive orange detections to exit room
         orange_count = 0
@@ -389,7 +496,7 @@ class Robot:
             if self.gyro_sensor.readjust_robot_flag.is_set():
                 self.stop_moving()
                 self.realign_to_zero()
-                self.move_straight(-1)  # Resume moving backward after realignment
+                self.move_straight(-1)  #& Replace with move_straight_dps(dps, -1)
             
             # Check current color
             with self.color_sensing_system.color_lock:
@@ -404,19 +511,19 @@ class Robot:
             
             time.sleep(0.05)
         
-        self.move_straight(1)
+        self.move_straight(1)  #& Replace with move_straight_dps(dps)
         time.sleep(0.3)
         self.stop_moving()
         print("Exited meeting room - detected orange twice")
         
-        self.turn_x_deg(270 - self.gyro_sensor.get_orientation())
+        self.turn_x_deg(270 - self.gyro_sensor.get_orientation())  #& Replace with turn_x_deg_dps(270 - self.gyro_sensor.get_orientation(), dps)
         
         # Fine-tune alignment after turn to ensure parallel to wall
         time.sleep(0.2)
         current_orientation = self.gyro_sensor.orientation
         if abs(current_orientation) > 1:
             print(f"Fine-tuning orientation from {current_orientation} to 0")
-            self.turn_x_deg(-current_orientation)
+            self.turn_x_deg(-current_orientation)  #& Replace with turn_x_deg_dps(-current_orientation, dps)
         
         self.color_sensing_system.move_sensor_to_right_side()
         
@@ -425,7 +532,7 @@ class Robot:
         self.color_sensing_system.is_in_hallway = True
         
         # Move forward to clear the intersection and prevent re-detection
-        self.move_straight(1)
+        self.move_straight(1)  #& Replace with move_straight_dps(dps)
         
         start_time = time.time()
         while time.time() - start_time < 0.5:
@@ -435,9 +542,9 @@ class Robot:
             if self.gyro_sensor.readjust_robot_flag.is_set():
                 self.stop_moving()
                 self.realign_to_zero()
-                self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)
-                self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)
-                self.move_straight(1)  # Resume moving forward after realignment
+                self.left_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_LEFT)  #& Remove these two set_power lines when using DPS
+                self.right_wheel.motor.set_power(Robot.FORWARD_MOVEMENT_POWER_RIGHT)  #& Remove these two set_power lines when using DPS
+                self.move_straight(1)  #& Replace with move_straight_dps(dps)
             
             time.sleep(0.05)
         
@@ -488,18 +595,18 @@ class Robot:
                 print(f"Turning to package: current={self.gyro_sensor.orientation}°, turning {new_angle}°")
                 
                 # Turn to package WITHOUT resetting (keep reference frame)
-                self.turn_x_deg(new_angle, reset_after=False)
+                self.turn_x_deg(new_angle, reset_after=False)  #& Replace with turn_x_deg_dps(new_angle, dps, reset_after=False)
                 self.drop_off_package()
                 
                 # Turn back to original orientation WITHOUT resetting
-                self.turn_x_deg(-new_angle, reset_after=False)
+                self.turn_x_deg(-new_angle, reset_after=False)  #& Replace with turn_x_deg_dps(-new_angle, dps, reset_after=False)
                 print(f"Returned to orientation: {self.gyro_sensor.orientation}°")
                 
                 self.packages_dropped = False
                 # Exit sweeping loop
                 self.color_sensing_system.detect_valid_sticker_flag.clear()
                 break
-            self.move_straight(1)
+            self.move_straight(1)  #& Replace with move_straight_dps(dps)
             time.sleep(0.5)
             self.stop_moving()
             self.realign_to_zero()
@@ -541,9 +648,9 @@ class Robot:
             if self.gyro_sensor.readjust_robot_flag.is_set():
                 self.stop_moving()
                 self.realign_to_zero()
-                self.move_straight(1)
+                self.move_straight(1)  #& Replace with move_straight_dps(dps)
             else:
-                self.move_straight(1)
+                self.move_straight(1)  #& Replace with move_straight_dps(dps)
             time.sleep(0.05)
         # exits the loop as soon as the flag is set
         # let the robot move a little more forward into the room before stopping it
@@ -592,6 +699,17 @@ class Robot:
             self.left_wheel.spin_wheel_continuously(direction * Robot.FORWARD_MOVEMENT_POWER_LEFT)
             self.right_wheel.spin_wheel_continuously(direction * Robot.FORWARD_MOVEMENT_POWER_RIGHT)
 
+    def move_straight_dps(self, dps: int, direction: int = 1):
+        """Move both wheels at specified DPS with direction.
+        
+        Args:
+            dps: Speed in degrees per second
+            direction: 1 for forward, -1 for backward (default: 1)
+        """
+        with self.wheel_lock:
+            self.left_wheel.move_straight_dps(dps, direction)
+            self.right_wheel.move_straight_dps(dps, direction)
+
     def move_straight_time(self, direction, time):
         time_interval = 0.1
         # we check at every time internval for readjustment
@@ -627,7 +745,7 @@ class Robot:
         # Move color sensor to front to detect orange tape
         self.color_sensing_system.move_sensor_to_front()
         print("TRYING TO MOVE BACKWARDS ||||||||||||||||||||||||||||||||||||||||||||")
-        self.move_straight(-1)
+        self.move_straight(-1)  #& Replace with move_straight_dps(dps, -1)
         
         # Count consecutive orange detections
         orange_count = 0
@@ -638,7 +756,7 @@ class Robot:
             if self.gyro_sensor.readjust_robot_flag.is_set():
                 self.stop_moving()
                 self.realign_to_zero()
-                self.move_straight(-1)  # Resume moving backward after realignment
+                self.move_straight(-1)  #& Replace with move_straight_dps(dps, -1)
             
             # Check current color
             with self.color_sensing_system.color_lock:
@@ -653,21 +771,21 @@ class Robot:
         
         self.stop_moving()
         # Needs to move straight a bit to stay aligned on right side of black line
-        self.move_straight(1)
+        self.move_straight(1)  #& Replace with move_straight_dps(dps)
         time.sleep(0.4)
         self.stop_moving()
         # time.sleep(0.1)
         print("Exited room - detected orange twice")
         
         # Turn back to hallway
-        self.turn_x_deg(270 - self.gyro_sensor.get_orientation())
+        self.turn_x_deg(270 - self.gyro_sensor.get_orientation())  #& Replace with turn_x_deg_dps(270 - self.gyro_sensor.get_orientation(), dps)
         
         # Fine-tune alignment after turn to ensure parallel to wall
         time.sleep(0.2)
         current_orientation = self.gyro_sensor.orientation
         if abs(current_orientation) > 1:
             print(f"Fine-tuning orientation from {current_orientation} to 0")
-            self.turn_x_deg(-current_orientation)
+            self.turn_x_deg(-current_orientation)  #& Replace with turn_x_deg_dps(-current_orientation, dps)
         
         self.color_sensing_system.move_sensor_to_right_side()
         
@@ -676,7 +794,7 @@ class Robot:
         self.color_sensing_system.is_in_hallway = True
         
         # Move forward to clear the intersection and prevent re-detection
-        self.move_straight(1)
+        self.move_straight(1)  #& Replace with move_straight_dps(dps)
         
         start_time = time.time()
         while time.time() - start_time < 0.5:
@@ -686,7 +804,7 @@ class Robot:
             if self.gyro_sensor.readjust_robot_flag.is_set():
                 self.stop_moving()
                 self.realign_to_zero()
-                self.move_straight(1)  # Resume moving forward after realignment
+                self.move_straight(1)  #& Replace with move_straight_dps(dps)
             
             time.sleep(0.05)
         
